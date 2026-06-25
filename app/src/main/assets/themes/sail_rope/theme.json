@@ -1,0 +1,15 @@
+{
+  "id": "sail_rope",
+  "name": "Sail & Rope",
+  "category": "free",
+  "description": "Nautical classic theme",
+  "colors": {
+    "background": "#F2EDE3",
+    "surface": "#C9B896",
+    "surfaceVariant": "#A69473",
+    "primary": "#1A2F73",
+    "accent": "#E6E1D5",
+    "textPrimary": "#2F2B24",
+    "textSecondary": "#726B60"
+  }
+}

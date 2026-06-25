@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:layout_marginHorizontal="5dp"
+    android:paddingBottom="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Book title above each book -->
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_primary"
+            android:textStyle="bold"
+            android:textSize="13sp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:layout_marginBottom="6dp"
+            android:visibility="visible"/>
+
+        <!-- Book area: shadow + cover overlapping -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="220dp">
+
+            <!-- Shadow (offset behind book) -->
+            <View
+                android:id="@+id/bookShadow"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_book_shadow"
+                android:visibility="visible"/>
+
+            <!-- Book body: spine + cover -->
+            <LinearLayout
+                android:id="@+id/bookBody"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:clipChildren="true"
+                android:clipToOutline="true">
+
+                <View
+                    android:id="@+id/bookSpine"
+                    android:layout_width="10dp"
+                    android:layout_height="match_parent"/>
+
+                <FrameLayout
+                    android:id="@+id/bookCover"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1">
+
+                    <ImageView
+                        android:id="@+id/ivThumbnail"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:visibility="gone"/>
+                </FrameLayout>
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Page count below -->
+        <TextView
+            android:id="@+id/tvPageCount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="10sp"
+            android:textColor="@color/text_secondary"
+            android:gravity="center"
+            android:layout_marginTop="4dp"/>
+    </LinearLayout>
+</FrameLayout>

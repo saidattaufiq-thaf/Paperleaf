@@ -1,0 +1,15 @@
+{
+  "id": "pink_boulevard",
+  "name": "Pink Boulevard",
+  "category": "premium",
+  "description": "Bold pink statement",
+  "colors": {
+    "background": "#FFE7EF",
+    "surface": "#D16B8A",
+    "surfaceVariant": "#6B89A7",
+    "primary": "#B93E63",
+    "accent": "#F2DDD6",
+    "textPrimary": "#402530",
+    "textSecondary": "#76616A"
+  }
+}

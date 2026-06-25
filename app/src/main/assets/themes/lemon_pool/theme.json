@@ -1,0 +1,15 @@
+{
+  "id": "lemon_pool",
+  "name": "Lemon Pool",
+  "category": "free",
+  "description": "Fresh citrus-inspired theme",
+  "colors": {
+    "background": "#E6F9F3",
+    "surface": "#B8E3DC",
+    "surfaceVariant": "#8AD9CE",
+    "primary": "#F2DB16",
+    "accent": "#D89C05",
+    "textPrimary": "#15333A",
+    "textSecondary": "#48646B"
+  }
+}

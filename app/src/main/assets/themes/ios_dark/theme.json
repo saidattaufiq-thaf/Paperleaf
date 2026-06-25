@@ -1,0 +1,15 @@
+{
+  "id": "ios_dark",
+  "name": "Midnight",
+  "category": "free",
+  "description": "iOS-style dark interface",
+  "colors": {
+    "background": "#1C1C1E",
+    "surface": "#2C2C2E",
+    "surfaceVariant": "#3A3A3C",
+    "primary": "#0A84FF",
+    "accent": "#5AC8FA",
+    "textPrimary": "#FFFFFF",
+    "textSecondary": "#AEAEB2"
+  }
+}

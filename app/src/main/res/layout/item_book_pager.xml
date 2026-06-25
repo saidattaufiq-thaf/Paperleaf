@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Bayangan buku (kanan & bawah) -->
+    <View
+        android:id="@+id/bookShadow"
+        android:layout_width="210dp"
+        android:layout_height="290dp"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_book_shadow"
+        android:visibility="visible"/>
+
+    <!-- Buku: body (spine+cover) + ketebalan halaman di bawah -->
+    <LinearLayout
+        android:id="@+id/bookOuter"
+        android:layout_width="210dp"
+        android:layout_height="290dp"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:clipChildren="true">
+
+        <!-- Body: spine kiri + cover kanan -->
+        <LinearLayout
+            android:id="@+id/bookBody"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <!-- Spine (sisi kiri, warna lebih gelap) -->
+            <View
+                android:id="@+id/bookSpine"
+                android:layout_width="18dp"
+                android:layout_height="match_parent"/>
+
+            <!-- Cover utama (kanan, sudut kanan membulat) -->
+            <FrameLayout
+                android:id="@+id/bookCover"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1">
+
+                <!-- Thumbnail halaman pertama (ditampilkan jika ada) -->
+                <ImageView
+                    android:id="@+id/ivPagePreview"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:alpha="0.55"
+                    android:visibility="gone"/>
+            </FrameLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+</FrameLayout>

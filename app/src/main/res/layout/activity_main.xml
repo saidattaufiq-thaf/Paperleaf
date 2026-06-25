@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/shelf_bg"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Unified header (always visible) -->
+    <LinearLayout
+        android:id="@+id/topHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:orientation="vertical"
+        android:paddingTop="48dp"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp">
+
+            <ImageButton
+                android:id="@+id/btnViewFlip"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_book_open"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="#444444"/>
+
+            <ImageButton
+                android:id="@+id/btnViewGrid"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_grid"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="#AAAAAA"/>
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"/>
+
+            <ImageButton
+                android:id="@+id/btnPaperStore"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/paper_store"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="#AAAAAA"/>
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/etBookTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:hint="Nama Jurnal"
+            android:textSize="28sp"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
+            android:fontFamily="sans-serif-light"
+            android:textAlignment="center"
+            android:gravity="center"
+            android:background="@android:color/transparent"
+            android:inputType="text"
+            android:maxLines="1"
+            android:imeOptions="actionDone"
+            android:paddingHorizontal="24dp"
+            android:minWidth="120dp"
+            android:layout_marginTop="8dp"
+            android:visibility="invisible"/>
+
+        <TextView
+            android:id="@+id/tvPageCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary"
+            android:fontFamily="sans-serif-light"
+            android:letterSpacing="0.05"
+            android:layout_marginTop="4dp"
+            android:visibility="invisible"/>
+    </LinearLayout>
+
+    <!-- Carousel buku (library flip mode) -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="148dp"
+        android:layout_marginBottom="96dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:visibility="gone"/>
+
+    <!-- Bookshelf grid (library grid mode) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvLibraryShelf"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="148dp"
+        android:layout_marginBottom="96dp"
+        android:padding="12dp"
+        android:clipToPadding="false"
+        android:visibility="gone"/>
+
+    <!-- Empty state -->
+    <TextView
+        android:id="@+id/tvEmpty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="Ketuk + untuk membuat jurnal baru"
+        android:textSize="14sp"
+        android:textColor="@color/text_secondary"
+        android:fontFamily="sans-serif-light"
+        android:visibility="gone"/>
+
+    <!-- Spread content (spread mode) -->
+    <FrameLayout
+        android:id="@+id/spreadContent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="148dp"
+        android:layout_marginBottom="96dp"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/gestureOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+        <com.paperleaf.sketchbook.view.BookSpreadView
+            android:id="@+id/bookSpreadView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvPageGrid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="12dp"
+            android:clipToPadding="false"
+            android:visibility="gone"/>
+    </FrameLayout>
+
+    <!-- Bottom action bar -->
+    <LinearLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingTop="12dp"
+        android:paddingBottom="20dp">
+
+        <ImageButton
+            android:id="@+id/btnSettings"
+            android:layout_width="52dp" android:layout_height="52dp"
+            android:src="@drawable/ic_settings"
+            android:background="@drawable/bg_circle_btn"
+            android:tint="#666666"
+            android:layout_marginHorizontal="8dp"/>
+
+        <ImageButton
+            android:id="@+id/btnDelete"
+            android:layout_width="52dp" android:layout_height="52dp"
+            android:src="@drawable/ic_delete"
+            android:background="@drawable/bg_circle_btn"
+            android:tint="#666666"
+            android:layout_marginHorizontal="8dp"/>
+
+        <ImageButton
+            android:id="@+id/btnShare"
+            android:layout_width="52dp" android:layout_height="52dp"
+            android:src="@drawable/ic_share"
+            android:background="@drawable/bg_circle_btn"
+            android:tint="#666666"
+            android:layout_marginHorizontal="8dp"/>
+
+        <ImageButton
+            android:id="@+id/btnDuplicate"
+            android:layout_width="52dp" android:layout_height="52dp"
+            android:src="@drawable/ic_copy"
+            android:background="@drawable/bg_circle_btn"
+            android:tint="#666666"
+            android:layout_marginHorizontal="8dp"/>
+
+        <ImageButton
+            android:id="@+id/btnAdd"
+            android:layout_width="52dp" android:layout_height="52dp"
+            android:src="@drawable/ic_add"
+            android:background="@drawable/bg_circle_btn"
+            android:tint="#666666"
+            android:layout_marginHorizontal="8dp"/>
+    </LinearLayout>
+
+</FrameLayout>

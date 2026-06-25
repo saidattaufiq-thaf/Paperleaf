@@ -1,0 +1,15 @@
+{
+  "id": "sky_liberty",
+  "name": "Sky Liberty",
+  "category": "premium",
+  "description": "Freedom of open skies",
+  "colors": {
+    "background": "#F6F7FF",
+    "surface": "#C7D7FF",
+    "surfaceVariant": "#4E89F5",
+    "primary": "#8A9EFF",
+    "accent": "#E3D9F8",
+    "textPrimary": "#23304F",
+    "textSecondary": "#61729A"
+  }
+}

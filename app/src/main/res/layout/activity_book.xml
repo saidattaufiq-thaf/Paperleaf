@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/book_bg">
+	
+	<FrameLayout
+        android:id="@+id/spreadHeaderBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="48dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start"
+            android:layout_marginStart="12dp"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnViewFlip"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_book_open"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="#FFFFFF"/>
+
+            <ImageButton
+                android:id="@+id/btnViewGrid"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_grid"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="#AAAAAA"/>
+
+            <ImageButton
+                android:id="@+id/btn3DFlip"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_redo"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="#FFA500"
+                android:contentDescription="3D Flip"/>
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btnPaperStore"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/paper_store"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="#AAAAAA"
+            android:layout_gravity="end"
+            android:layout_marginEnd="12dp"/>
+    </FrameLayout>                        
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingTop="56dp"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:id="@+id/tvBookTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="28sp"
+                android:textColor="#FFFFFF"
+                android:fontFamily="sans-serif-light"
+                android:gravity="center"/>
+
+            <TextView
+                android:id="@+id/tvPageInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="#AAFFFFFF"
+                android:fontFamily="sans-serif-light"
+                android:letterSpacing="0.05"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <View
+            android:id="@+id/gestureOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+        <com.paperleaf.sketchbook.view.BookSpreadView
+            android:id="@+id/bookSpreadView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvPageGrid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="12dp"
+            android:clipToPadding="false"
+            android:visibility="gone"/>
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingTop="12dp"
+        android:paddingBottom="32dp"
+        android:layout_marginBottom="16dp"
+        android:orientation="horizontal">
+
+        <ImageButton android:id="@+id/btnMore"
+            android:layout_width="52dp" android:layout_height="52dp"
+            android:src="@drawable/ic_settings"
+            android:background="@drawable/bg_circle_btn"
+            android:tint="#666666"
+            android:layout_marginHorizontal="8dp"/>
+
+        <ImageButton android:id="@+id/btnShare"
+            android:layout_width="52dp" android:layout_height="52dp"
+            android:src="@drawable/ic_share"
+            android:background="@drawable/bg_circle_btn"
+            android:tint="#666666"
+            android:layout_marginHorizontal="8dp"/>
+
+        <ImageButton android:id="@+id/btnDuplicate"
+            android:layout_width="52dp" android:layout_height="52dp"
+            android:src="@drawable/ic_copy"
+            android:background="@drawable/bg_circle_btn"
+            android:tint="#666666"
+            android:layout_marginHorizontal="8dp"/>
+
+        <ImageButton android:id="@+id/btnAddPage"
+            android:layout_width="52dp" android:layout_height="52dp"
+            android:src="@drawable/ic_add"
+            android:background="@drawable/bg_circle_btn"
+            android:tint="#666666"
+            android:layout_marginHorizontal="8dp"/>
+    </LinearLayout>
+
+</LinearLayout>

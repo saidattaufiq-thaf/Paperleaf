@@ -1,0 +1,15 @@
+{
+  "id": "nectarine_home",
+  "name": "Nectarine Home",
+  "category": "premium",
+  "description": "Warm peach comfort",
+  "colors": {
+    "background": "#FCE7D7",
+    "surface": "#F4C785",
+    "surfaceVariant": "#A6D1C0",
+    "primary": "#F7B09A",
+    "accent": "#7FB6D2",
+    "textPrimary": "#48382D",
+    "textSecondary": "#72675D"
+  }
+}

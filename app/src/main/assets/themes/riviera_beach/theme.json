@@ -1,0 +1,15 @@
+{
+  "id": "riviera_beach",
+  "name": "Riviera Beach",
+  "category": "free",
+  "description": "Coastal sunset vibes",
+  "colors": {
+    "background": "#F7E8D3",
+    "surface": "#9CC3DD",
+    "surfaceVariant": "#4F7895",
+    "primary": "#E05C1B",
+    "accent": "#F18B3D",
+    "textPrimary": "#2A2A2A",
+    "textSecondary": "#575757"
+  }
+}

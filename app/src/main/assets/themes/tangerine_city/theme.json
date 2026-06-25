@@ -1,0 +1,15 @@
+{
+  "id": "tangerine_city",
+  "name": "Tangerine City",
+  "category": "free",
+  "description": "Urban citrus energy",
+  "colors": {
+    "background": "#D8EDF5",
+    "surface": "#8AB5DA",
+    "surfaceVariant": "#4A7EA5",
+    "primary": "#F06A2A",
+    "accent": "#07145C",
+    "textPrimary": "#14233B",
+    "textSecondary": "#4F5F70"
+  }
+}

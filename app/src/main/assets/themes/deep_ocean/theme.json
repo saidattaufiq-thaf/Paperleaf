@@ -1,0 +1,15 @@
+{
+  "id": "deep_ocean",
+  "name": "Deep Ocean",
+  "category": "premium",
+  "description": "Deep sea exploration",
+  "colors": {
+    "background": "#D7F6F5",
+    "surface": "#69C7C2",
+    "surfaceVariant": "#124260",
+    "primary": "#003A66",
+    "accent": "#3EBFC5",
+    "textPrimary": "#12405D",
+    "textSecondary": "#D4F7F4"
+  }
+}

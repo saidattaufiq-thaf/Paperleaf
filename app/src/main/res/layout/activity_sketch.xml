@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/canvas_bg">
+
+    <!-- Canvas fills entire screen - NO CONTAINER LIMITING IT -->
+    <com.paperleaf.sketchbook.view.DrawingView
+        android:id="@+id/drawingView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/canvas_bg"/>
+
+    <!-- Text editing overlay (above canvas, below toolbars) -->
+    <com.paperleaf.sketchbook.view.TextOverlayView
+        android:id="@+id/textOverlay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:minWidth="220dp"
+        android:minHeight="90dp"
+        android:visibility="gone"/>
+
+    <!-- Top toolbar (floating overlay) -->
+    <LinearLayout
+        android:id="@+id/transformBar"
+        android:layout_width="wrap_content"
+        android:layout_height="52dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="36dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:background="@drawable/bg_toolbar_pill"
+        android:elevation="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content" 
+            android:layout_height="wrap_content"
+            android:text="Layer"
+            android:textColor="#AAAAAA" 
+            android:textSize="12sp"
+            android:layout_marginEnd="8dp"/>
+
+        <ImageButton
+            android:id="@+id/btnDeleteLayer"
+            android:layout_width="44dp" 
+            android:layout_height="44dp"
+            android:src="@android:drawable/ic_menu_delete"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="#FF5252"/>
+
+        <ImageButton
+            android:id="@+id/btnFlatten"
+            android:layout_width="44dp" 
+            android:layout_height="44dp"
+            android:src="@android:drawable/ic_menu_set_as"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="#69F0AE"/>
+    </LinearLayout>
+
+    <!-- Undo/Redo buttons (top-right corner) -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="36dp"
+        android:layout_marginEnd="16dp"
+        android:orientation="horizontal"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="4dp">
+
+        <ImageButton
+            android:id="@+id/btnUndo"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_undo"
+            android:background="@android:color/transparent"/>
+
+        <ImageButton
+            android:id="@+id/btnRedo"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_redo"
+            android:background="@android:color/transparent"/>
+    </LinearLayout>
+
+    <!-- Bottom toolbar (floating overlay) -->
+    <LinearLayout
+        android:id="@+id/bottomArea"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:background="@drawable/bg_tool_bar"
+        android:elevation="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="6dp">
+
+            <ImageButton
+                android:id="@+id/btnMove"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_transform"
+                android:background="@null"
+                android:scaleType="fitCenter"
+                android:padding="6dp"
+                android:layout_marginEnd="2dp"/>
+
+            <HorizontalScrollView
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/colorPalette"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="2dp"/>
+            </HorizontalScrollView>
+
+            <ImageButton
+                android:id="@+id/btnLayers"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_layers"
+                android:background="@null"
+                android:scaleType="fitCenter"
+                android:padding="6dp"
+                android:layout_marginStart="2dp"/>
+
+        </LinearLayout>
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="54dp"
+                android:orientation="horizontal"
+                android:gravity="bottom"
+                android:paddingStart="2dp"
+                android:paddingEnd="4dp">
+
+                <ImageButton
+                    android:id="@+id/btnEraser"
+                    android:layout_width="38dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_eraser"
+                    android:background="@drawable/bg_tool_btn"
+                    android:scaleType="center"
+                    android:layout_marginEnd="1dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnPen"
+                    android:layout_width="38dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_pen"
+                    android:background="@drawable/bg_tool_btn"
+                    android:scaleType="center"
+                    android:layout_marginEnd="1dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnPencil"
+                    android:layout_width="38dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_pencil"
+                    android:background="@drawable/bg_tool_btn"
+                    android:scaleType="center"
+                    android:layout_marginEnd="1dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnBrush"
+                    android:layout_width="38dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_brush"
+                    android:background="@drawable/bg_tool_btn"
+                    android:scaleType="center"
+                    android:layout_marginEnd="1dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnMarker"
+                    android:layout_width="38dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_marker"
+                    android:background="@drawable/bg_tool_btn"
+                    android:scaleType="center"
+                    android:layout_marginEnd="1dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnInkPen"
+                    android:layout_width="38dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_ink_pen"
+                    android:background="@drawable/bg_tool_btn"
+                    android:scaleType="center"
+                    android:layout_marginEnd="1dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnRuler"
+                    android:layout_width="38dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_ruler"
+                    android:background="@drawable/bg_tool_btn"
+                    android:scaleType="center"
+                    android:layout_marginEnd="1dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnKeyboard"
+                    android:layout_width="38dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_keyboard"
+                    android:background="@drawable/bg_tool_btn"
+                    android:scaleType="center"
+                    android:layout_marginEnd="1dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnScissors"
+                    android:layout_width="38dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_scissors"
+                    android:background="@drawable/bg_tool_btn"
+                    android:scaleType="center"
+                    android:layout_marginEnd="1dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnRoller"
+                    android:layout_width="38dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_roller"
+                    android:background="@drawable/bg_tool_btn"
+                    android:scaleType="center"/>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="20dp"
+                    android:background="#50FFFFFF"
+                    android:layout_marginHorizontal="3dp"
+                    android:layout_marginBottom="4dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnImportPhoto"
+                    android:layout_width="38dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/add_image"
+                    android:background="@null"
+                    android:scaleType="center"/>
+
+            </LinearLayout>
+        </HorizontalScrollView>
+    </LinearLayout>
+
+</FrameLayout>

@@ -1,0 +1,15 @@
+{
+  "id": "golden_harvest",
+  "name": "Golden Harvest",
+  "category": "premium",
+  "description": "Warm autumn abundance",
+  "colors": {
+    "background": "#FFF4C7",
+    "surface": "#F2C558",
+    "surfaceVariant": "#A36A1F",
+    "primary": "#E6A91B",
+    "accent": "#6D3F0F",
+    "textPrimary": "#3B2A12",
+    "textSecondary": "#745A31"
+  }
+}

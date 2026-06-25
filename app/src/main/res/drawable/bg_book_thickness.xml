@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Page block base -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#F0EBE3"/>
+            <corners
+                android:topLeftRadius="0dp"
+                android:topRightRadius="0dp"
+                android:bottomLeftRadius="4dp"
+                android:bottomRightRadius="24dp"/>
+        </shape>
+    </item>
+    <!-- Top shadow (cover overlap) -->
+    <item android:bottom="10dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="90"
+                android:startColor="#2A000000"
+                android:endColor="@android:color/transparent"/>
+        </shape>
+    </item>
+    <!-- Garis-garis halaman -->
+    <item android:top="4dp" android:bottom="9dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#1C000000"/>
+        </shape>
+    </item>
+    <item android:top="7dp" android:bottom="6dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#1C000000"/>
+        </shape>
+    </item>
+    <item android:top="10dp" android:bottom="3dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#1C000000"/>
+        </shape>
+    </item>
+</layer-list>

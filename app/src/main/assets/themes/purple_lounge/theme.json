@@ -1,0 +1,15 @@
+{
+  "id": "purple_lounge",
+  "name": "Purple Lounge",
+  "category": "premium",
+  "description": "Elegant purple atmosphere",
+  "colors": {
+    "background": "#E9D6F5",
+    "surface": "#B48CC9",
+    "surfaceVariant": "#654A7A",
+    "primary": "#F0C8E8",
+    "accent": "#4B1C4B",
+    "textPrimary": "#FFFFFF",
+    "textSecondary": "#E4D8F2"
+  }
+}

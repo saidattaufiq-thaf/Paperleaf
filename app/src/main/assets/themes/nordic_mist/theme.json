@@ -1,0 +1,15 @@
+{
+  "id": "nordic_mist",
+  "name": "Nordic Mist",
+  "category": "premium",
+  "description": "Scandinavian minimalism",
+  "colors": {
+    "background": "#E4E8EB",
+    "surface": "#737A84",
+    "surfaceVariant": "#232629",
+    "primary": "#101113",
+    "accent": "#B8C2CB",
+    "textPrimary": "#FFFFFF",
+    "textSecondary": "#DCE2E7"
+  }
+}

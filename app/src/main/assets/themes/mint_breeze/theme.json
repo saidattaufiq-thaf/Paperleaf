@@ -1,0 +1,15 @@
+{
+  "id": "mint_breeze",
+  "name": "Mint Breeze",
+  "category": "premium",
+  "description": "Cool mint freshness",
+  "colors": {
+    "background": "#EFF8F5",
+    "surface": "#CFE9DF",
+    "surfaceVariant": "#A7D4C6",
+    "primary": "#85BDB4",
+    "accent": "#DDF4EE",
+    "textPrimary": "#2E4C49",
+    "textSecondary": "#5A7B76"
+  }
+}

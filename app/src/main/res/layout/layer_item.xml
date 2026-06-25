@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardRoot"
+    android:layout_width="72dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="6dp"
+    app:cardCornerRadius="10dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp"
+    app:contentPadding="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <LinearLayout
+            android:id="@+id/iconRow"
+            android:layout_width="match_parent"
+            android:layout_height="14dp"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/eyeIcon"
+                android:layout_width="0dp"
+                android:layout_height="14dp"
+                android:layout_weight="1"
+                android:scaleType="fitCenter"
+                android:importantForAccessibility="no"/>
+
+            <ImageView
+                android:id="@+id/dupIcon"
+                android:layout_width="0dp"
+                android:layout_height="14dp"
+                android:layout_weight="1"
+                android:scaleType="fitCenter"
+                android:importantForAccessibility="no"/>
+
+            <ImageView
+                android:id="@+id/lockIcon"
+                android:layout_width="0dp"
+                android:layout_height="14dp"
+                android:layout_weight="1"
+                android:scaleType="fitCenter"
+                android:importantForAccessibility="no"/>
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/thumbnail"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="2dp"
+            android:scaleType="centerCrop"
+            android:clipToOutline="true"
+            android:importantForAccessibility="no"/>
+
+        <View
+            android:id="@+id/maskingIndicator"
+            android:layout_width="52dp"
+            android:layout_height="2dp"
+            android:layout_marginTop="1dp"
+            android:background="#3D8EF8"
+            android:visibility="gone"/>
+
+        <TextView
+            android:id="@+id/layerName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="8sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:gravity="center_horizontal"/>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

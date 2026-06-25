@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="white">#FFFFFF</color>
+    <color name="canvas_bg">#12415E</color>
+    <color name="toolbar_dark">#141414</color>
+    <color name="shelf_bg">#F0EDE8</color>
+    <color name="text_primary">#1A1A1A</color>
+    <color name="text_secondary">#888888</color>
+	<color name="colorPrimary">#6200EE</color>
+    <color name="colorPrimaryDark">#3700B3</color>
+    <color name="colorAccent">#03DAC5</color>
+    <color name="black">#FF000000</color>
+	<color name="book_bg">#3C3E44</color>
+	<color name="sketch_bg">#2C2C2C</color>
+    <color name="canvas_shadow">#40000000</color>
+    <color name="ocean_bg">#12415E</color>
+    <color name="ocean_teal">#A9E5E4</color>
+    <color name="active_icon">#3CBEC3</color>
+    <color name="selected_tab_bg">#11415D</color>
+</resources>

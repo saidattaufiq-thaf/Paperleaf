@@ -1,0 +1,15 @@
+{
+  "id": "lavender_meadow",
+  "name": "Lavender Meadow",
+  "category": "premium",
+  "description": "Soft lavender fields",
+  "colors": {
+    "background": "#F8F4F8",
+    "surface": "#D8AFC4",
+    "surfaceVariant": "#A4B243",
+    "primary": "#EFC8DA",
+    "accent": "#D8E6F2",
+    "textPrimary": "#493646",
+    "textSecondary": "#7A6777"
+  }
+}

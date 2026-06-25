@@ -1,0 +1,15 @@
+{
+  "id": "ios_light",
+  "name": "iOS Light",
+  "category": "free",
+  "description": "iOS-style light interface",
+  "colors": {
+    "background": "#F2F2F7",
+    "surface": "#FFFFFF",
+    "surfaceVariant": "#E5E5EA",
+    "primary": "#007AFF",
+    "accent": "#5AC8FA",
+    "textPrimary": "#1C1C1E",
+    "textSecondary": "#8E8E93"
+  }
+}

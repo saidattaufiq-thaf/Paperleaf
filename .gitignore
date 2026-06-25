@@ -1,0 +1,5 @@
+.androidide/
+aider.log
+node_modules/
+build/
+*.log

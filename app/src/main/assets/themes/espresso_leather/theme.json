@@ -1,0 +1,15 @@
+{
+  "id": "espresso_leather",
+  "name": "Espresso Leather",
+  "category": "premium",
+  "description": "Rich coffee warmth",
+  "colors": {
+    "background": "#F3E4D3",
+    "surface": "#A88669",
+    "surfaceVariant": "#50382A",
+    "primary": "#2A1A14",
+    "accent": "#C9B49C",
+    "textPrimary": "#FFFFFF",
+    "textSecondary": "#E7DCCF"
+  }
+}

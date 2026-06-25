@@ -1,0 +1,15 @@
+{
+  "id": "botanical_garden",
+  "name": "Botanical Garden",
+  "category": "premium",
+  "description": "Lush green serenity",
+  "colors": {
+    "background": "#EAF4DD",
+    "surface": "#A6CB7F",
+    "surfaceVariant": "#688D46",
+    "primary": "#4A6B2D",
+    "accent": "#D5E8B8",
+    "textPrimary": "#25321A",
+    "textSecondary": "#5B6B4A"
+  }
+}
