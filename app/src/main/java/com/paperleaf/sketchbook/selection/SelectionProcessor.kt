@@ -14,8 +14,12 @@ object SelectionProcessor {
 
     // Set this to true once OpenCV is bundled for improved algorithms
     private var openCvAvailable = false
-    private var tolerance = 40
+    var tolerance = 40  // Made configurable for better control
     private val morphologyRadius = 2
+    
+    // Edge detection sensitivity for smart cut
+    private val edgeThreshold = 30
+    private val maxIterations = 5
 
     fun init(): Boolean {
         // Try loading OpenCV; stays false if not available
@@ -31,6 +35,10 @@ object SelectionProcessor {
     }
 
     fun isInitialized(): Boolean = openCvAvailable
+    
+    fun setTolerance(value: Int) {
+        tolerance = value.coerceIn(10, 100)
+    }
 
     // ─── LASSO SMOOTHING ──────────────────────────────────────────
 
@@ -51,13 +59,19 @@ object SelectionProcessor {
         points: List<Pair<Float, Float>>,
         w: Int, h: Int
     ): Path {
-        val simplified = rdpSimplify(points, 2.5f)
+        if (points.size < 3) return Path()
+        
+        // Use higher precision simplification for smoother curves
+        val simplified = rdpSimplify(points, 1.5f)
+        if (simplified.size < 3) return Path()
+        
         val mask = BooleanArray(w * h) { false }
-        val minY = simplified.minOf { it.second.toInt().coerceIn(0, h - 1) }
-        val maxY = simplified.maxOf { it.second.toInt().coerceIn(0, h - 1) }
-        val minX = simplified.minOf { it.first.toInt().coerceIn(0, w - 1) }
-        val maxX = simplified.maxOf { it.first.toInt().coerceIn(0, w - 1) }
+        val minY = simplified.minOfOrNull { it.second.toInt().coerceIn(0, h - 1) } ?: 0
+        val maxY = simplified.maxOfOrNull { it.second.toInt().coerceIn(0, h - 1) } ?: h - 1
+        val minX = simplified.minOfOrNull { it.first.toInt().coerceIn(0, w - 1) } ?: 0
+        val maxX = simplified.maxOfOrNull { it.first.toInt().coerceIn(0, w - 1) } ?: w - 1
 
+        // Fill the polygon using scanline algorithm
         for (y in minY..maxY) {
             val intersections = mutableListOf<Int>()
             var inside = false
@@ -78,6 +92,7 @@ object SelectionProcessor {
             }
         }
 
+        // Apply morphological operations for smooth edges
         val smoothedMask = morphologyClose(mask, w, h, morphologyRadius)
         val edgeMask = morphologyOpen(smoothedMask, w, h, morphologyRadius)
 
@@ -99,7 +114,7 @@ object SelectionProcessor {
         bitmap: Bitmap,
         tapX: Int,
         tapY: Int,
-        tolerance: Int
+        tolerance: Int = 40
     ): Path? = withContext(Dispatchers.Default) {
         try {
             if (openCvAvailable) openCvFloodFill(bitmap, tapX, tapY, tolerance)
@@ -113,7 +128,9 @@ object SelectionProcessor {
         bitmap: Bitmap, tx: Int, ty: Int, tol: Int
     ): Path {
         val w = bitmap.width; val h = bitmap.height
-        val targetColor = bitmap.getPixel(tx.coerceIn(0, w - 1), ty.coerceIn(0, h - 1))
+        if (tx !in 0 until w || ty !in 0 until h) return Path()
+        
+        val targetColor = bitmap.getPixel(tx, ty)
         val visited = BooleanArray(w * h)
         val selected = BooleanArray(w * h)
         val queue = ArrayDeque<Int>()
@@ -121,14 +138,21 @@ object SelectionProcessor {
         queue.addLast(idx)
         visited[idx] = true
         var count = 0
-        val maxPixels = 500000
+        val maxPixels = w * h // Allow full selection if needed
+
+        // Use 8-way connectivity for better fill
+        val neighbors = listOf(
+            -1 to 0, 1 to 0, 0 to -1, 0 to 1,  // 4-way
+            -1 to -1, -1 to 1, 1 to -1, 1 to 1  // diagonals
+        )
 
         while (queue.isNotEmpty() && count < maxPixels) {
             val cur = queue.removeFirst()
             val cx = cur % w; val cy = cur / w
             selected[cur] = true
             count++
-            for ((dx, dy) in listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1)) {
+            
+            for ((dx, dy) in neighbors) {
                 val nx = cx + dx; val ny = cy + dy
                 if (nx in 0 until w && ny in 0 until h) {
                     val ni = ny * w + nx
@@ -141,7 +165,8 @@ object SelectionProcessor {
             }
         }
 
-        val opened = morphologyOpen(selected, w, h, 2)
+        // Apply morphological operations for cleaner edges
+        val opened = morphologyOpen(selected, w, h, 1)
         val closed = morphologyClose(opened, w, h, 2)
 
         return maskToOutlinePath(closed, w, h)
@@ -160,8 +185,8 @@ object SelectionProcessor {
     suspend fun grabCutSelect(
         bitmap: Bitmap,
         rect: Rect,
-        scaleX: Float,
-        scaleY: Float
+        scaleX: Float = 1f,
+        scaleY: Float = 1f
     ): Path? = withContext(Dispatchers.Default) {
         try {
             if (openCvAvailable) openCvGrabCut(bitmap, rect, scaleX, scaleY)
@@ -182,68 +207,75 @@ object SelectionProcessor {
         val ex = (bx + bw).coerceAtMost(w)
         val ey = (by + bh).coerceAtMost(h)
 
-        // Sample background colors outside rect (4 sides)
+        // Sample background colors from border region outside rect
         val bgColors = mutableListOf<Int>()
-        val border = 4
-        for (x in 0 until w) {
-            for (y in listOf(0, h - 1)) {
-                if (x < bx - border || x > ex + border || y < by - border || y > ey + border) {
+        val border = 8
+        val sampleStep = 3
+        
+        // Top and bottom borders
+        for (y in listOf(by - border, ey + border)) {
+            if (y in 0 until h) {
+                for (x in bx until ex step sampleStep) {
                     bgColors.add(bitmap.getPixel(x, y))
                 }
             }
         }
-        for (y in 0 until h) {
-            for (x in listOf(0, w - 1)) {
-                if (x < bx - border || x > ex + border || y < by - border || y > ey + border) {
+        
+        // Left and right borders
+        for (x in listOf(bx - border, ex + border)) {
+            if (x in 0 until w) {
+                for (y in by until ey step sampleStep) {
                     bgColors.add(bitmap.getPixel(x, y))
                 }
             }
         }
+        
         val avgBg = if (bgColors.isNotEmpty()) averageColor(bgColors) else 0xFF808080.toInt()
 
-        // Flood fill from seeds inside rect
-        val seeds = listOf(
-            (bx + bw / 4) to (by + bh / 4),
-            (bx + 3 * bw / 4) to (by + bh / 4),
-            (bx + bw / 4) to (by + 3 * bh / 4),
-            (bx + 3 * bw / 4) to (by + 3 * bh / 4),
-            (bx + bw / 2) to (by + bh / 2)
-        )
+        // Sample foreground colors from inside rect (center region)
+        val fgColors = mutableListOf<Int>()
+        val margin = 5
+        for (y in (by + margin) until (ey - margin) step sampleStep) {
+            for (x in (bx + margin) until (ex - margin) step sampleStep) {
+                fgColors.add(bitmap.getPixel(x, y))
+            }
+        }
+        val avgFg = if (fgColors.isNotEmpty()) averageColor(fgColors) else avgBg
 
+        // Initialize selection with foreground area
         val selected = BooleanArray(w * h)
-        val visited = BooleanArray(w * h)
-        val rectTol = 35
+        for (y in by until ey) {
+            for (x in bx until ex) {
+                selected[y * w + x] = true
+            }
+        }
 
-        for ((sx, sy) in seeds) {
-            val si = sy.coerceIn(by + 1, ey - 1) * w + sx.coerceIn(bx + 1, ex - 1)
-            if (visited[si]) continue
-
-            val seedColor = bitmap.getPixel(si % w, si / w)
-            val queue = ArrayDeque<Int>()
-            queue.addLast(si)
-            visited[si] = true
-
-            while (queue.isNotEmpty()) {
-                val cur = queue.removeFirst()
-                val cx = cur % w; val cy = cur / w
-                val pixel = bitmap.getPixel(cx, cy)
-                if (colorDist(pixel, avgBg) < 30 && colorDist(pixel, seedColor) > 50) continue
-                selected[cur] = true
-
-                for ((dx, dy) in listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1)) {
-                    val nx = cx + dx; val ny = cy + dy
-                    if (nx in bx until ex && ny in by until ey) {
-                        val ni = ny * w + nx
-                        if (!visited[ni]) {
-                            visited[ni] = true
-                            val nc = bitmap.getPixel(nx, ny)
-                            if (colorDist(nc, seedColor) <= rectTol) queue.addLast(ni)
-                        }
+        // Iterative refinement based on color similarity
+        for (iteration in 0 until maxIterations) {
+            var changed = false
+            
+            // Check boundary pixels
+            for (y in (by - 2).coerceAtLeast(0) until (ey + 2).coerceAtMost(h)) {
+                for (x in (bx - 2).coerceAtLeast(0) until (ex + 2).coerceAtMost(w)) {
+                    val idx = y * w + x
+                    val pixel = bitmap.getPixel(x, y)
+                    val distBg = colorDist(pixel, avgBg)
+                    val distFg = colorDist(pixel, avgFg)
+                    
+                    // Pixel should be selected if closer to foreground
+                    val shouldBeSelected = distFg < distBg - edgeThreshold
+                    
+                    if (shouldBeSelected != selected[idx]) {
+                        selected[idx] = shouldBeSelected
+                        changed = true
                     }
                 }
             }
+            
+            if (!changed) break
         }
 
+        // Apply morphological operations for smooth edges
         val closed = morphologyClose(selected, w, h, 3)
         val opened = morphologyOpen(closed, w, h, 2)
 
@@ -323,8 +355,13 @@ object SelectionProcessor {
         val path = Path()
         if (edgePoints.isEmpty()) return path
 
-        val sorted = traceContour(edgePoints)
-        path.moveTo(sorted[0].first.toFloat(), sorted[0].second.toFloat())
+        val sorted = traceContourOptimized(edgePoints)
+        if (sorted.isEmpty()) return path
+        
+        // Start from the topmost-leftmost point for consistent ordering
+        val startPoint = sorted.minByOrNull { it.second * w + it.first } ?: sorted[0]
+        path.moveTo(startPoint.first.toFloat(), startPoint.second.toFloat())
+        
         for (i in 1 until sorted.size) {
             path.lineTo(sorted[i].first.toFloat(), sorted[i].second.toFloat())
         }
@@ -332,24 +369,31 @@ object SelectionProcessor {
         return path
     }
 
-    private fun traceContour(points: List<Pair<Int, Int>>): List<Pair<Int, Int>> {
+    private fun traceContourOptimized(points: List<Pair<Int, Int>>): List<Pair<Int, Int>> {
         if (points.isEmpty()) return points
+        
+        val pointSet = points.toHashSet()
         val visited = mutableSetOf<Pair<Int, Int>>()
         val result = mutableListOf<Pair<Int, Int>>()
-        var current = points.first()
+        
+        // Start from topmost-leftmost point
+        var current = points.minByOrNull { it.second * 10000 + it.first } ?: return points
         result.add(current)
         visited.add(current)
 
         var prevDir = 0 to 0
         var stuckCount = 0
+        val maxStuck = points.size / 2
 
-        while (result.size < points.size && stuckCount < 1000) {
+        while (result.size < points.size && stuckCount < maxStuck) {
             val (cx, cy) = current
+            
+            // Priority order: continue in same direction, then clockwise search
             val dirs = listOf(
                 1 to 0, 0 to 1, -1 to 0, 0 to -1,
                 1 to 1, -1 to 1, 1 to -1, -1 to -1
             )
-            // Prioritize direction similar to previous
+            
             val sortedDirs = if (prevDir.first != 0 || prevDir.second != 0) {
                 dirs.sortedByDescending { (dx, dy) -> dx * prevDir.first + dy * prevDir.second }
             } else dirs
@@ -357,7 +401,7 @@ object SelectionProcessor {
             var found = false
             for ((dx, dy) in sortedDirs) {
                 val np = (cx + dx) to (cy + dy)
-                if (np in points && np !in visited) {
+                if (np in pointSet && np !in visited) {
                     result.add(np)
                     visited.add(np)
                     current = np
@@ -366,9 +410,10 @@ object SelectionProcessor {
                     break
                 }
             }
+            
             if (!found) {
                 stuckCount++
-                // Find nearest unvisited point
+                // Find nearest unvisited point using Euclidean distance
                 val nearest = points.filter { it !in visited }
                     .minByOrNull { (px, py) -> (px - cx) * (px - cx) + (py - cy) * (py - cy) }
                 if (nearest != null) {
@@ -379,7 +424,8 @@ object SelectionProcessor {
                 }
             }
         }
-        return result
+        
+        return if (result.size >= points.size / 2) result else points
     }
 
     // ─── GEOMETRY HELPERS ─────────────────────────────────────────
@@ -392,7 +438,7 @@ object SelectionProcessor {
             val d = perpendicularDist(points[i], first, last)
             if (d > maxDist) { maxDist = d; maxIdx = i }
         }
-        return if (maxDist > epsilon) {
+        return if (maxDist > epsilon && maxIdx > 0) {
             rdpSimplify(points.subList(0, maxIdx + 1), epsilon) +
                 rdpSimplify(points.subList(maxIdx, points.size), epsilon).drop(1)
         } else {
@@ -421,9 +467,15 @@ object SelectionProcessor {
     }
 
     private fun colorDist(c1: Int, c2: Int): Int {
-        return abs(Color.red(c1) - Color.red(c2)) +
-            abs(Color.green(c1) - Color.green(c2)) +
-            abs(Color.blue(c1) - Color.blue(c2))
+        // Use weighted Euclidean distance for better perceptual accuracy
+        val r1 = Color.red(c1); val g1 = Color.green(c1); val b1 = Color.blue(c1)
+        val r2 = Color.red(c2); val g2 = Color.green(c2); val b2 = Color.blue(c2)
+        val rMean = (r1 + r2) / 2
+        val dr = r1 - r2
+        val dg = g1 - g2
+        val db = b1 - b2
+        // Approximation of CIE76 color difference
+        return kotlin.math.sqrt(((512 + rMean) * dr * dr shr 8) + 4 * dg * dg + ((767 - rMean) * db * db shr 8)).toInt()
     }
 
     private fun averageColor(colors: List<Int>): Int {
