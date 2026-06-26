@@ -12,6 +12,7 @@ import com.paperleaf.sketchbook.model.ClipboardManager
 import com.paperleaf.sketchbook.selection.SelectionProcessor
 import kotlin.math.*
 import kotlinx.coroutines.*
+import android.animation.ValueAnimator
 
 class DrawingView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
@@ -249,6 +250,8 @@ class DrawingView @JvmOverloads constructor(
     private var selectionStartY = 0f
     var onSelectionChanged: (() -> Unit)? = null
     private var magicWandJob: Job? = null
+    private var marchingAntsPhase = 0f
+    private var antsAnimator: ValueAnimator? = null
 
     // ─── PENDING IMAGE (PREVIEW SEBELUM DROP) ─────────────────────
     var pendingBitmap: Bitmap? = null
@@ -308,7 +311,6 @@ class DrawingView @JvmOverloads constructor(
     private val selectionBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#2196F3")
         style = Paint.Style.STROKE; strokeWidth = 3f
-        pathEffect = DashPathEffect(floatArrayOf(10f, 6f), 0f)
     }
     private val selectionLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#FF5722"); style = Paint.Style.STROKE
@@ -390,6 +392,15 @@ class DrawingView @JvmOverloads constructor(
             System.loadLibrary("paperleaf_native")
             nativeInit(); true
         } catch (e: Throwable) { false }
+        antsAnimator = ValueAnimator.ofFloat(0f, 24f).apply {
+            duration = 400
+            repeatCount = ValueAnimator.INFINITE
+            addUpdateListener { anim ->
+                marchingAntsPhase = anim.animatedValue as Float
+                if (hasSelection) invalidate()
+            }
+            start()
+        }
     }
 
     // ─── MEASURE & LIFECYCLE ──────────────────────────────────────
@@ -519,6 +530,7 @@ class DrawingView @JvmOverloads constructor(
             }
             canvas.drawRect(0f, 0f, bmp.width.toFloat(), bmp.height.toFloat(), selectionOverlayPaint)
             canvas.restore()
+            selectionBorderPaint.pathEffect = DashPathEffect(floatArrayOf(8f, 6f), marchingAntsPhase)
             canvas.drawPath(selectionPath, selectionBorderPaint)
         }
         if (isSelecting && !hasSelection && scissorMode != SCISSOR_NONE) {
@@ -1587,11 +1599,7 @@ class DrawingView @JvmOverloads constructor(
                 handleShapeTouch(event, rawX, rawY); return true
             }
             if (brushSettings.toolType == TOOL_SCISSOR) {
-                if (isTransformMode && hasSelection) {
-                    handleSelectionDrag(event, rawX, rawY)
-                } else {
-                    handleNewSelectionTouch(event, rawX, rawY)
-                }
+                handleNewSelectionTouch(event, rawX, rawY)
                 return true
             }
         }
@@ -2119,7 +2127,23 @@ class DrawingView @JvmOverloads constructor(
     }
 
     // ─── SELECTION TOUCH ──────────────────────────────────────────
+    private fun isPointInSelection(x: Float, y: Float): Boolean {
+        if (!hasSelection || selectionPath.isEmpty) return false
+        val bounds = RectF()
+        selectionPath.computeBounds(bounds, true)
+        if (!bounds.contains(x, y)) return false
+        val r = Region()
+        val clip = Rect()
+        bounds.roundOut(clip)
+        r.setPath(selectionPath, Region(clip))
+        return r.contains(x.toInt(), y.toInt())
+    }
+
     private fun handleNewSelectionTouch(event: MotionEvent, x: Float, y: Float) {
+        if (hasSelection && event.actionMasked == MotionEvent.ACTION_DOWN && isPointInSelection(x, y)) {
+            handleSelectionDrag(event, x, y)
+            return
+        }
         when (scissorMode) {
             SCISSOR_LASSO -> handleLassoTouch(event, x, y)
             SCISSOR_SMART_CUT -> handleSmartCutTouch(event, x, y)
@@ -2256,9 +2280,17 @@ class DrawingView @JvmOverloads constructor(
     }
 
     // ─── SELECTION ACTIONS ────────────────────────────────────────
-    private fun getSelectedBitmap(): Bitmap? {
+    private fun getSelectedBitmapFromLayer(): Bitmap? {
         if (!hasSelection) return null
-        val bmp = workBitmap ?: return null
+        val layer = selectedLayer ?: return null
+        if (layer.isLocked || layer.isTextLayer) return null
+        if (!layer.isMasking) {
+            ensureLayerFullCanvas()
+            if (layer.x != 0f || layer.y != 0f || layer.scale != 1f || layer.rotation != 0f) {
+                bakeLayerTransform(layer)
+            }
+        }
+        val bmp = layer.bitmap
         val bounds = RectF()
         selectionPath.computeBounds(bounds, true)
         val l = bounds.left.toInt().coerceAtLeast(0)
@@ -2273,46 +2305,84 @@ class DrawingView @JvmOverloads constructor(
         val localPath = Path(selectionPath)
         localPath.offset(-l.toFloat(), -t.toFloat())
         c.clipPath(localPath)
-        c.drawBitmap(bmp, -l.toFloat(), -t.toFloat(), Paint())
+        c.drawBitmap(bmp, -l.toFloat(), -t.toFloat(), null)
         return result
     }
 
     fun cutSelection() {
-        val selBmp = getSelectedBitmap() ?: return
+        val layer = selectedLayer ?: return
+        if (layer.isLocked || layer.isTextLayer) return
+        val selBmp = getSelectedBitmapFromLayer() ?: return
         saveState("cutSelection")
         ClipboardManager.clipboardBitmap = selBmp
-        clearSelectedAreaOnCanvas()
-        addImageLayer(selBmp)
+        clearSelectedAreaFromLayer()
+        val bounds = RectF()
+        selectionPath.computeBounds(bounds, true)
+        val nativeId = if (nativeAvailable) nativeCreateLayer(selBmp.width, selBmp.height) else -1
+        val cutLayer = ImageLayer(
+            bitmap = selBmp,
+            canvas = Canvas(selBmp),
+            x = bounds.left,
+            y = bounds.top,
+            scale = 1f,
+            name = "Potongan",
+            nativeId = nativeId
+        )
+        layers.forEach { it.isSelected = false }
+        layers.add(cutLayer)
+        selectedLayer = cutLayer
+        isTransformMode = true
         hasSelection = false
         isSelecting = false
         selectionPath.reset()
         onSelectionChanged?.invoke()
+        onLayersChanged?.invoke()
         invalidate()
         scissorMode = SCISSOR_NONE
     }
 
     fun copySelection() {
-        val selBmp = getSelectedBitmap() ?: return
+        val selBmp = getSelectedBitmapFromLayer() ?: return
         ClipboardManager.clipboardBitmap = selBmp
-        clearSelection()
-        scissorMode = SCISSOR_NONE
+        invalidate()
     }
 
     fun pasteSelection() {
         val bmp = ClipboardManager.clipboardBitmap ?: return
-        addImageLayer(bmp)
+        saveState("pasteSelection")
+        val cw = 3508f; val ch = 2480f
+        val sc = minOf(cw * 0.5f / bmp.width, ch * 0.5f / bmp.height, 1f)
+        val px = (cw - bmp.width * sc) / 2f
+        val py = (ch - bmp.height * sc) / 2f
+        val nativeId = if (nativeAvailable) nativeCreateLayer(bmp.width, bmp.height) else -1
+        val layer = ImageLayer(
+            bitmap = bmp,
+            canvas = Canvas(bmp),
+            x = px,
+            y = py,
+            scale = sc,
+            name = "Tempelan",
+            nativeId = nativeId
+        )
+        layers.forEach { it.isSelected = false }
+        layers.add(layer)
+        selectedLayer = layer
+        isTransformMode = true
         hasSelection = false
         isSelecting = false
         selectionPath.reset()
         onSelectionChanged?.invoke()
+        onLayersChanged?.invoke()
         invalidate()
         scissorMode = SCISSOR_NONE
     }
 
     fun deleteSelection() {
         if (!hasSelection) return
+        val layer = selectedLayer ?: return
+        if (layer.isLocked || layer.isTextLayer) return
         saveState("deleteSelection")
-        clearSelectedAreaOnCanvas()
+        clearSelectedAreaFromLayer()
         hasSelection = false
         isSelecting = false
         selectionPath.reset()
@@ -2340,18 +2410,26 @@ class DrawingView @JvmOverloads constructor(
         scissorMode = SCISSOR_NONE
     }
 
-    private fun clearSelectedAreaOnCanvas() {
-        val c = workCanvas ?: return
+    private fun clearSelectedAreaFromLayer() {
+        val layer = selectedLayer ?: return
+        if (layer.isLocked || layer.isTextLayer) return
+        if (!layer.isMasking) {
+            ensureLayerFullCanvas()
+            if (layer.x != 0f || layer.y != 0f || layer.scale != 1f || layer.rotation != 0f) {
+                bakeLayerTransform(layer)
+            }
+        }
+        val c = layer.canvas
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             c.save()
             c.clipOutPath(selectionPath)
-            c.drawColor(Color.parseColor("#FAF9F0"))
+            c.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
             c.restore()
         } else {
             c.save()
             @Suppress("DEPRECATION")
             c.clipPath(selectionPath, Region.Op.DIFFERENCE)
-            c.drawColor(Color.parseColor("#FAF9F0"))
+            c.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
             c.restore()
         }
     }
@@ -2366,15 +2444,13 @@ class DrawingView @JvmOverloads constructor(
     private fun handleSelectionDrag(event: MotionEvent, x: Float, y: Float) {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                selDragStartX = x
-                selDragStartY = y
-                val selBmp = getSelectedBitmap() ?: return
+                selDragStartX = x; selDragStartY = y
+                val selBmp = getSelectedBitmapFromLayer() ?: return
                 saveState("handleSelectionDrag")
-                clearSelectedAreaOnCanvas()
+                clearSelectedAreaFromLayer()
                 val bounds = RectF()
                 selectionPath.computeBounds(bounds, true)
-                selDragOrigX = bounds.left
-                selDragOrigY = bounds.top
+                selDragOrigX = bounds.left; selDragOrigY = bounds.top
                 val nativeId = if (nativeAvailable) nativeCreateLayer(selBmp.width, selBmp.height) else -1
                 selDragLayer = ImageLayer(
                     bitmap = selBmp,
@@ -2382,6 +2458,7 @@ class DrawingView @JvmOverloads constructor(
                     x = bounds.left,
                     y = bounds.top,
                     scale = 1f,
+                    name = "Pindahan",
                     nativeId = nativeId
                 )
                 layers.forEach { it.isSelected = false }
@@ -2604,6 +2681,7 @@ class DrawingView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        antsAnimator?.cancel()
         clearUndoRedo()
         if (nativeAvailable) nativeClearLayers()
     }

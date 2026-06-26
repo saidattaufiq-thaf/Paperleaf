@@ -2,7 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/shelf_bg"
+    android:background="@drawable/bg_liquid_glass_shelf"
     android:clipChildren="false"
     android:clipToPadding="false">
 
@@ -157,10 +157,13 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="24dp"
+        android:layout_marginHorizontal="12dp"
         android:orientation="horizontal"
         android:gravity="center"
-        android:paddingTop="12dp"
-        android:paddingBottom="20dp">
+        android:paddingTop="16dp"
+        android:paddingBottom="24dp"
+        android:background="@drawable/bg_glass_bottom"
+        android:elevation="8dp">
 
         <ImageButton
             android:id="@+id/btnSettings"

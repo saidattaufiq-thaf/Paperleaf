@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/book_bg">
+    android:background="@drawable/bg_liquid_glass_book">
 	
 	<FrameLayout
         android:id="@+id/spreadHeaderBar"
@@ -119,10 +119,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:paddingTop="12dp"
+        android:paddingTop="16dp"
         android:paddingBottom="32dp"
         android:layout_marginBottom="16dp"
-        android:orientation="horizontal">
+        android:layout_marginHorizontal="12dp"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_glass_bottom"
+        android:elevation="8dp">
 
         <ImageButton android:id="@+id/btnMore"
             android:layout_width="52dp" android:layout_height="52dp"

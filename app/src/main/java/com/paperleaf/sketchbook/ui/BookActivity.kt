@@ -351,7 +351,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             }
             card.addView(et)
             card.addView(View(this).apply {
-                setBackgroundColor(Color.parseColor("#333333"))
+                setBackgroundColor(Color.parseColor("#18FFFFFF"))
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
             })
             val btnRow = LinearLayout(this).apply {
@@ -368,7 +368,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                 setOnClickListener { dialog.dismiss() }
             })
             btnRow.addView(View(this).apply {
-                setBackgroundColor(Color.parseColor("#333333"))
+                setBackgroundColor(Color.parseColor("#18FFFFFF"))
                 layoutParams = LinearLayout.LayoutParams(1, ViewGroup.LayoutParams.MATCH_PARENT)
             })
             btnRow.addView(TextView(this).apply {
@@ -461,7 +461,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             }
             card.addView(et)
             card.addView(View(this).apply {
-                setBackgroundColor(Color.parseColor("#333333"))
+                setBackgroundColor(Color.parseColor("#18FFFFFF"))
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
             })
             val btnRow = LinearLayout(this).apply {
@@ -478,7 +478,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                 setOnClickListener { dialog.dismiss() }
             })
             btnRow.addView(View(this).apply {
-                setBackgroundColor(Color.parseColor("#333333"))
+                setBackgroundColor(Color.parseColor("#18FFFFFF"))
                 layoutParams = LinearLayout.LayoutParams(1, ViewGroup.LayoutParams.MATCH_PARENT)
             })
             btnRow.addView(TextView(this).apply {
@@ -818,11 +818,9 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         }
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#1E1E1E"))
-                cornerRadius = 14f * dp
-            }
+            background = getDrawable(R.drawable.bg_dialog_glass)
             setOnClickListener {}
+            elevation = 12f
         }
 
         container.addView(TextView(this).apply {
@@ -836,7 +834,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
 
         items.forEachIndexed { _, item ->
             container.addView(View(this).apply {
-                setBackgroundColor(Color.parseColor("#2A2A2A"))
+                setBackgroundColor(Color.parseColor("#18FFFFFF"))
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
             })
 
@@ -901,7 +899,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
 
         // Developer: Unlock Premium Assets
         container.addView(View(this).apply {
-            setBackgroundColor(Color.parseColor("#2A2A2A"))
+            setBackgroundColor(Color.parseColor("#18FFFFFF"))
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
         })
         val devRow = LinearLayout(this).apply {
@@ -969,7 +967,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         })
         listOf("id" to "Bahasa Indonesia", "en" to "English").forEach { (langCode, label) ->
             card.addView(View(this).apply {
-                setBackgroundColor(Color.parseColor("#333333"))
+                setBackgroundColor(Color.parseColor("#18FFFFFF"))
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
             })
             val row = LinearLayout(this).apply {
@@ -1036,10 +1034,8 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         }
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#1E1E1E"))
-                cornerRadius = 14f * dp
-            }
+            background = getDrawable(R.drawable.bg_dialog_glass)
+            elevation = 12f
             layoutParams = LinearLayout.LayoutParams(
                 (280 * dp).toInt(),
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -1055,7 +1051,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         })
         if (themes.isEmpty()) {
             card.addView(View(this).apply {
-                setBackgroundColor(Color.parseColor("#333333"))
+                setBackgroundColor(Color.parseColor("#18FFFFFF"))
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
             })
             card.addView(TextView(this).apply {
@@ -1068,7 +1064,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         } else {
             themes.forEach { theme ->
                 card.addView(View(this).apply {
-                    setBackgroundColor(Color.parseColor("#333333"))
+                    setBackgroundColor(Color.parseColor("#18FFFFFF"))
                     layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
                 })
                 val row = LinearLayout(this).apply {
@@ -1147,7 +1143,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             setOnClickListener { dialog.dismiss() }
         }
         card.addView(View(this).apply {
-            setBackgroundColor(Color.parseColor("#333333"))
+            setBackgroundColor(Color.parseColor("#18FFFFFF"))
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
         })
         card.addView(btnClose)
@@ -1198,7 +1194,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         })
         toggles.forEach { toggle ->
             card.addView(View(this).apply {
-                setBackgroundColor(Color.parseColor("#333333"))
+                setBackgroundColor(Color.parseColor("#18FFFFFF"))
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
             })
             val row = LinearLayout(this).apply {
@@ -1283,7 +1279,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             setPadding(0, (16 * dp).toInt(), 0, (8 * dp).toInt())
         })
         card.addView(View(this).apply {
-            setBackgroundColor(Color.parseColor("#333333"))
+            setBackgroundColor(Color.parseColor("#18FFFFFF"))
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
         })
         card.addView(TextView(this).apply {
@@ -1293,7 +1289,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             setPadding((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (12 * dp).toInt())
         })
         card.addView(View(this).apply {
-            setBackgroundColor(Color.parseColor("#333333"))
+            setBackgroundColor(Color.parseColor("#18FFFFFF"))
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
         })
         val btnClear = TextView(this).apply {
@@ -1372,7 +1368,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             setPadding(0, 0, 0, (12 * dp).toInt())
         })
         card.addView(View(this).apply {
-            setBackgroundColor(Color.parseColor("#333333"))
+            setBackgroundColor(Color.parseColor("#18FFFFFF"))
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
         })
         card.addView(TextView(this).apply {
@@ -1453,7 +1449,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         )
         options.forEach { opt ->
             card.addView(View(this).apply {
-                setBackgroundColor(Color.parseColor("#333333"))
+                setBackgroundColor(Color.parseColor("#18FFFFFF"))
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
             })
             val row = LinearLayout(this).apply {
@@ -1503,7 +1499,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             setOnClickListener { dialog.dismiss() }
         }
         card.addView(View(this).apply {
-            setBackgroundColor(Color.parseColor("#333333"))
+            setBackgroundColor(Color.parseColor("#18FFFFFF"))
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
         })
         card.addView(btnClose)
