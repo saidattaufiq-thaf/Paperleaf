@@ -1026,9 +1026,17 @@ public class PageFlip {
         mScroller.abortAnimation();
         if (mFlipState == PageFlipState.FORWARD_FLIP) {
             mFlipState = PageFlipState.END_WITH_FORWARD;
+            // Notify listener that flip completed (forward)
+            if (mListener != null) {
+                mListener.onPageFlipCompleted(true);
+            }
         }
         else if (mFlipState == PageFlipState.BACKWARD_FLIP) {
             mFlipState = PageFlipState.END_WITH_BACKWARD;
+            // Notify listener that flip completed (backward)
+            if (mListener != null) {
+                mListener.onPageFlipCompleted(false);
+            }
         }
         else if (mFlipState == PageFlipState.RESTORE_FLIP) {
             mFlipState = PageFlipState.END_WITH_RESTORE;

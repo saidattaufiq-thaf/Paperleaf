@@ -56,7 +56,31 @@ class ReaderActivity : AppCompatActivity() {
                 // TODO: Check if there are previous pages to flip backward
                 return false // Disable backward for now
             }
+            
+            override fun onPageFlipCompleted(forward: Boolean) {
+                // Called when page flip animation completes
+                // You can load next/previous page here
+                Log.d("PageFlip", "Flip completed: ${if (forward) "forward" else "backward"}")
+                
+                // Example: Load next page after forward flip
+                if (forward) {
+                    loadNextPage()
+                }
+            }
         })
+    }
+    
+    private fun loadNextPage() {
+        lifecycleScope.launch {
+            // Load next page from your Room database or assets
+            val nextPage = withContext(Dispatchers.IO) {
+                loadAndScaleBitmap("path_to_next_page.jpg")
+            }
+            
+            nextPage?.let {
+                binding.pageFlipView.setNextPage(it)
+            }
+        }
     }
 
     private fun loadInitialPages() {

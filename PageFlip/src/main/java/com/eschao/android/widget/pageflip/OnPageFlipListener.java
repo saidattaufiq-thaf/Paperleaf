@@ -36,4 +36,9 @@ public interface OnPageFlipListener {
      * @return true if page can flip backward
      */
     boolean canFlipBackward();
+    
+    /**
+     * Called when page flip animation is completed (forward)
+     */
+    default void onPageFlipCompleted(boolean forward) {}
 }
