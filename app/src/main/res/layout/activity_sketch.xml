@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootSketch"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/canvas_bg">
 
-    <!-- Canvas fills entire screen - NO CONTAINER LIMITING IT -->
     <com.paperleaf.sketchbook.view.DrawingView
         android:id="@+id/drawingView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@color/canvas_bg"/>
 
-    <!-- Text editing overlay (above canvas, below toolbars) -->
     <com.paperleaf.sketchbook.view.TextOverlayView
         android:id="@+id/textOverlay"
         android:layout_width="wrap_content"
@@ -22,7 +21,6 @@
         android:minHeight="90dp"
         android:visibility="gone"/>
 
-    <!-- Top toolbar (floating overlay) -->
     <LinearLayout
         android:id="@+id/transformBar"
         android:layout_width="wrap_content"
@@ -32,7 +30,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingHorizontal="12dp"
-        android:background="@drawable/bg_toolbar_pill"
+        android:background="@drawable/bg_glass_toolbar_pill"
         android:elevation="12dp"
         android:visibility="gone">
 
@@ -61,7 +59,6 @@
             android:tint="#69F0AE"/>
     </LinearLayout>
 
-    <!-- Undo/Redo buttons (top-right corner) -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -87,7 +84,6 @@
             android:background="@android:color/transparent"/>
     </LinearLayout>
 
-    <!-- Bottom toolbar (floating overlay) -->
     <LinearLayout
         android:id="@+id/bottomArea"
         android:layout_width="match_parent"
@@ -95,7 +91,7 @@
         android:layout_gravity="bottom"
         android:orientation="vertical"
         android:gravity="center_horizontal"
-        android:background="@drawable/bg_tool_bar"
+        android:background="@drawable/bg_glass_premium"
         android:elevation="12dp">
 
         <LinearLayout
@@ -138,7 +134,6 @@
                 android:scaleType="fitCenter"
                 android:padding="6dp"
                 android:layout_marginStart="2dp"/>
-
         </LinearLayout>
 
         <HorizontalScrollView
@@ -159,7 +154,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_eraser"
-                    android:background="@drawable/bg_tool_btn"
+                    android:background="@drawable/bg_glass_tool_btn"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -168,7 +163,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_pen"
-                    android:background="@drawable/bg_tool_btn"
+                    android:background="@drawable/bg_glass_tool_btn"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -177,7 +172,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_pencil"
-                    android:background="@drawable/bg_tool_btn"
+                    android:background="@drawable/bg_glass_tool_btn"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -186,7 +181,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_brush"
-                    android:background="@drawable/bg_tool_btn"
+                    android:background="@drawable/bg_glass_tool_btn"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -195,7 +190,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_marker"
-                    android:background="@drawable/bg_tool_btn"
+                    android:background="@drawable/bg_glass_tool_btn"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -204,7 +199,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_ink_pen"
-                    android:background="@drawable/bg_tool_btn"
+                    android:background="@drawable/bg_glass_tool_btn"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -213,7 +208,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_ruler"
-                    android:background="@drawable/bg_tool_btn"
+                    android:background="@drawable/bg_glass_tool_btn"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -222,7 +217,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_keyboard"
-                    android:background="@drawable/bg_tool_btn"
+                    android:background="@drawable/bg_glass_tool_btn"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -231,7 +226,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_scissors"
-                    android:background="@drawable/bg_tool_btn"
+                    android:background="@drawable/bg_glass_tool_btn"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -240,7 +235,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_roller"
-                    android:background="@drawable/bg_tool_btn"
+                    android:background="@drawable/bg_glass_tool_btn"
                     android:scaleType="center"/>
 
                 <View
@@ -257,7 +252,6 @@
                     android:src="@drawable/add_image"
                     android:background="@null"
                     android:scaleType="center"/>
-
             </LinearLayout>
         </HorizontalScrollView>
     </LinearLayout>

@@ -5,13 +5,13 @@
     android:clipChildren="false"
     android:clipToPadding="false">
 
-    <!-- Bayangan buku (kanan & bawah) -->
+    <!-- Bayangan buku (kanan & bawah) with enhanced depth -->
     <View
         android:id="@+id/bookShadow"
         android:layout_width="210dp"
         android:layout_height="290dp"
         android:layout_gravity="center"
-        android:background="@drawable/bg_book_shadow"
+        android:background="@drawable/bg_book_cover"
         android:visibility="visible"/>
 
     <!-- Buku: body (spine+cover) + ketebalan halaman di bawah -->
@@ -52,6 +52,14 @@
                     android:scaleType="centerCrop"
                     android:alpha="0.55"
                     android:visibility="gone"/>
+
+                <!-- Rim light overlay for premium depth -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_rim_light"
+                    android:alpha="0.5"
+                    android:visibility="visible"/>
             </FrameLayout>
         </LinearLayout>
 

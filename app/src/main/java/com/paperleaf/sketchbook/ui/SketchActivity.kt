@@ -12,6 +12,7 @@ import android.text.Layout
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
+import android.content.ComponentCallbacks2
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -30,6 +31,9 @@ import android.widget.Space
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.dynamicanimation.animation.DynamicAnimation
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -53,6 +57,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
 
 class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
 
@@ -199,7 +204,7 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= TRIM_MEMORY_RUNNING_LOW) {
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
             binding.drawingView.clearUndoRedo()
         }
     }
@@ -335,6 +340,7 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
     }
 
     // ─── THEME ───────────────────────────────────────────────────
+    @Suppress("DEPRECATION")
     private fun applyThemeColors() {
         val c = ThemeManager.getThemeColors()
         window.statusBarColor = c.background
@@ -1308,8 +1314,17 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             it.isSelected = false
             it.alpha = 0.35f
             it.imageTintList = null
-            it.translationY = 0f
-            it.translationZ = 0f
+            // Spring back to neutral position
+            SpringAnimation(it, DynamicAnimation.TRANSLATION_Y, 0f).apply {
+                spring.dampingRatio = SpringForce.DAMPING_RATIO_HIGH_BOUNCY
+                spring.stiffness = SpringForce.STIFFNESS_MEDIUM
+                start()
+            }
+            SpringAnimation(it, DynamicAnimation.TRANSLATION_Z, 0f).apply {
+                spring.dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
+                spring.stiffness = SpringForce.STIFFNESS_HIGH
+                start()
+            }
         }
         val active = when (toolType) {
             BrushSettings.TOOL_FOUNTAIN_PEN  -> binding.btnPen
@@ -1326,8 +1341,17 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         active.isSelected = true
         active.alpha = 1f
         active.imageTintList = null
-        active.translationY = -(6f * dp)
-        active.translationZ = 6f * dp
+        // Spring lift for active tool
+        SpringAnimation(active, DynamicAnimation.TRANSLATION_Y, -(6f * dp)).apply {
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+            spring.stiffness = SpringForce.STIFFNESS_LOW
+            start()
+        }
+        SpringAnimation(active, DynamicAnimation.TRANSLATION_Z, 6f * dp).apply {
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
+            spring.stiffness = SpringForce.STIFFNESS_MEDIUM
+            start()
+        }
     }
 
     // ─── POPUPS & PANELS ─────────────────────────────────────────
@@ -1607,10 +1631,8 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((6 * dp).toInt(), (10 * dp).toInt(), (6 * dp).toInt(), (10 * dp).toInt())
-            background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(Color.parseColor("#2C2C2C"))
-                cornerRadius = 12f * dp
-            }
+            background = getDrawable(R.drawable.bg_glass_premium)
+            elevation = 6f * dp
         }
 
         // Title
@@ -1725,9 +1747,8 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             orientation = LinearLayout.VERTICAL
             setPadding((10*dp).toInt(), (8*dp).toInt(), (10*dp).toInt(), (8*dp).toInt())
             minimumWidth = (300*dp).toInt()
-            background = GradientDrawable().apply {
-                setColor(deepOceanBg(Color.parseColor("#DD222222"))); cornerRadius = 16f * dp
-            }
+            background = getDrawable(R.drawable.bg_glass_premium)
+            elevation = 8f * dp
         }
 
         val header = LinearLayout(this).apply {
@@ -2002,10 +2023,8 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         val grid = GridLayout(this).apply {
             columnCount = 3
             setPadding((8*dp).toInt(), (8*dp).toInt(), (8*dp).toInt(), (8*dp).toInt())
-            background = GradientDrawable().apply {
-                setColor(deepOceanBg(Color.parseColor("#EE222222")))
-                cornerRadius = 16f * dp
-            }
+            background = getDrawable(R.drawable.bg_glass_premium)
+            elevation = 8f * dp
         }
 
         actions.forEach { item ->
@@ -2243,12 +2262,7 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM
             )
-            background = GradientDrawable().apply {
-                setColor(deepOceanBg(Color.parseColor("#1E1E1E")))
-                cornerRadii = floatArrayOf(
-                    16f * dp, 16f * dp, 0f, 0f, 0f, 0f, 0f, 0f
-                )
-            }
+            background = getDrawable(R.drawable.bg_glass_premium)
             addView(container)
         }
 
@@ -2343,10 +2357,8 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         }
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(deepOceanBg(Color.parseColor("#1E1E1E")))
-                cornerRadius = 16f * dp
-            }
+            background = getDrawable(R.drawable.bg_glass_premium)
+            elevation = 12f
             layoutParams = FrameLayout.LayoutParams(
                 (280*dp).toInt(),
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -2418,6 +2430,9 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         val highlight = if (isMidnight) Color.parseColor("#1B3E98") else Color.parseColor("#3CBEC3")
         val restore = if (isMidnight) Color.WHITE else Color.parseColor("#12415E")
         btn.setColorFilter(highlight)
+        btn.animate().scaleX(0.85f).scaleY(0.85f).setDuration(80).withEndAction {
+            btn.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
+        }.start()
         btn.postDelayed({
             btn.setColorFilter(restore)
         }, 200)
@@ -2428,12 +2443,29 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         toolBtns.forEach {
             it.isSelected = false; it.alpha = 0.35f
             it.imageTintList = null
-            it.translationY = 0f; it.translationZ = 0f
+            SpringAnimation(it, DynamicAnimation.TRANSLATION_Y, 0f).apply {
+                spring.dampingRatio = SpringForce.DAMPING_RATIO_HIGH_BOUNCY
+                spring.stiffness = SpringForce.STIFFNESS_MEDIUM
+                start()
+            }
+            SpringAnimation(it, DynamicAnimation.TRANSLATION_Z, 0f).apply {
+                spring.dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
+                spring.stiffness = SpringForce.STIFFNESS_HIGH
+                start()
+            }
         }
         binding.btnRuler.isSelected = true; binding.btnRuler.alpha = 1f
         binding.btnRuler.imageTintList = null
-        binding.btnRuler.translationY = -(6f * dp)
-        binding.btnRuler.translationZ = 6f * dp
+        SpringAnimation(binding.btnRuler, DynamicAnimation.TRANSLATION_Y, -(6f * dp)).apply {
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+            spring.stiffness = SpringForce.STIFFNESS_LOW
+            start()
+        }
+        SpringAnimation(binding.btnRuler, DynamicAnimation.TRANSLATION_Z, 6f * dp).apply {
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
+            spring.stiffness = SpringForce.STIFFNESS_MEDIUM
+            start()
+        }
     }
 
     private fun toggleTransformMode() {

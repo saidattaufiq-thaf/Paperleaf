@@ -36,6 +36,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import kotlin.math.abs
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -49,6 +50,7 @@ import com.paperleaf.sketchbook.template.PaperTemplateEngine
 import com.paperleaf.sketchbook.utils.FileUtils
 import com.paperleaf.sketchbook.theme.ThemeManager
 import com.paperleaf.sketchbook.utils.TransitionHelper
+import com.paperleaf.sketchbook.animation.SpringUtils
 import com.paperleaf.sketchbook.animation.ViewMorphAnimator
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
@@ -89,6 +91,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
     private val isMidnight: Boolean get() = ThemeManager.current.id == "ios_dark"
 
     // ─── LIFECYCLE ────────────────────────────────────────────────
+    @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityBookBinding.inflate(layoutInflater)
@@ -101,7 +104,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         window.statusBarColor = tc.background
         WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false)
+            WindowCompat.setDecorFitsSystemWindows(window, false)
         }
 
         applyThemeColors()
@@ -145,6 +148,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         ThemeManager.removeListener(this)
     }
 
+    @Suppress("DEPRECATION")
     private fun applyThemeColors() {
         val c = ThemeManager.getThemeColors()
         window.statusBarColor = c.background
@@ -219,6 +223,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun applyMidnightTheme() {
         window.statusBarColor = Color.parseColor("#1C1C1E")
         binding.root.setBackgroundColor(Color.parseColor("#1C1C1E"))
@@ -754,6 +759,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
     private fun setupBottomBar() {
         binding.btnMore.setOnClickListener {
             if (isMidnight) binding.btnMore.setColorFilter(Color.parseColor("#1B3E98"))
+            SpringUtils.springPressEffect(binding.btnMore)
             showSettingsPopup(onDismiss = {
                 if (isMidnight) binding.btnMore.setColorFilter(Color.parseColor("#1C1C1E"))
             })
@@ -765,6 +771,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                     binding.btnShare.setColorFilter(Color.parseColor("#1C1C1E"))
                 }, 200)
             }
+            SpringUtils.springPressEffect(binding.btnShare)
             showShareSpreadDialog()
         }
         binding.btnDuplicate.setOnClickListener {
@@ -774,6 +781,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                     binding.btnDuplicate.setColorFilter(Color.parseColor("#1C1C1E"))
                 }, 200)
             }
+            SpringUtils.springPressEffect(binding.btnDuplicate)
             duplicatePage()
         }
         binding.btnAddPage.setOnClickListener {
@@ -783,6 +791,7 @@ class BookActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                     binding.btnAddPage.setColorFilter(Color.parseColor("#1C1C1E"))
                 }, 200)
             }
+            SpringUtils.springPressEffect(binding.btnAddPage)
             addPage()
         }
     }

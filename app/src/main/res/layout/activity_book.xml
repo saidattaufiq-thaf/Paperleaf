@@ -124,7 +124,7 @@
         android:layout_marginBottom="16dp"
         android:layout_marginHorizontal="12dp"
         android:orientation="horizontal"
-        android:background="@drawable/bg_glass_bottom"
+        android:background="@drawable/bg_bottom_capsule"
         android:elevation="8dp">
 
         <ImageButton android:id="@+id/btnMore"

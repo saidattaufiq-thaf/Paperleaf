@@ -5,6 +5,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
+import androidx.dynamicanimation.animation.DynamicAnimation
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
 import com.paperleaf.sketchbook.databinding.ActivitySplashBinding
 import com.paperleaf.sketchbook.utils.TransitionHelper
 
@@ -20,16 +23,44 @@ class SplashActivity : AppCompatActivity() {
         binding = ActivitySplashBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Logo: fade in + geser ke atas
-        binding.tvLogo
-            .animate()
-            .alpha(1f)
-            .translationYBy(-24f)
-            .setDuration(900)
-            .withEndAction {
-                binding.tvTagline.animate().alpha(1f).setDuration(300).start()
-                handler.postDelayed({ typeNext() }, 350)
-            }.start()
+        // Lottie logo: spring scale up
+        binding.lottieLogo.apply {
+            scaleX = 0.6f
+            scaleY = 0.6f
+            alpha = 0f
+            postDelayed({
+                SpringAnimation(this, DynamicAnimation.SCALE_X, 1f).apply {
+                    spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+                    spring.stiffness = SpringForce.STIFFNESS_LOW
+                    start()
+                }
+                SpringAnimation(this, DynamicAnimation.SCALE_Y, 1f).apply {
+                    spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+                    spring.stiffness = SpringForce.STIFFNESS_LOW
+                    start()
+                }
+                animate().alpha(0.9f).setDuration(400).start()
+            }, 100)
+        }
+
+        // Logo text: spring slide up + fade
+        binding.tvLogo.apply {
+            translationY = 40f
+            postDelayed({
+                alpha = 1f
+                SpringAnimation(this, DynamicAnimation.TRANSLATION_Y, 0f).apply {
+                    spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+                    spring.stiffness = SpringForce.STIFFNESS_LOW
+                    start()
+                }
+            }, 500)
+        }
+
+        // Tagline: spring in after logo
+        binding.tvTagline.postDelayed({
+            binding.tvTagline.animate().alpha(1f).setDuration(300).start()
+            handler.postDelayed({ typeNext() }, 350)
+        }, 1000)
     }
 
     private fun typeNext() {

@@ -17,4 +17,21 @@
     <color name="ocean_teal">#A9E5E4</color>
     <color name="active_icon">#3CBEC3</color>
     <color name="selected_tab_bg">#11415D</color>
+
+    <!-- Liquid Glass Palette -->
+    <color name="glass_dark_base">#E8141414</color>
+    <color name="glass_dark_overlay">#E61E1E1E</color>
+    <color name="glass_light_base">#D0F5F0E8</color>
+    <color name="glass_stroke">#28FFFFFF</color>
+    <color name="glass_stroke_bright">#40FFFFFF</color>
+    <color name="glass_glare">#18FFFFFF</color>
+    <color name="glass_glare_strong">#25FFFFFF</color>
+    <color name="glass_shadow">#40000000</color>
+    <color name="glass_shadow_soft">#20000000</color>
+    <color name="glass_tint_white">#15FFFFFF</color>
+
+    <!-- Book Cover -->
+    <color name="cover_rim_light">#30FFFFFF</color>
+    <color name="cover_shadow">#50000000</color>
+    <color name="cover_shadow_deep">#80000000</color>
 </resources>

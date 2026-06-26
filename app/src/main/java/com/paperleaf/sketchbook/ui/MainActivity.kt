@@ -54,6 +54,7 @@ import com.paperleaf.sketchbook.template.PaperTemplateEngine
 import com.paperleaf.sketchbook.utils.FileUtils
 import com.paperleaf.sketchbook.utils.TransitionHelper
 import com.paperleaf.sketchbook.animation.ViewMorphAnimator
+import com.paperleaf.sketchbook.animation.SpringUtils
 import com.paperleaf.sketchbook.theme.ThemeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -162,6 +163,7 @@ class MainActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun applyThemeColors() {
         if (isMidnight) {
             applyMidnightTheme()
@@ -193,6 +195,7 @@ class MainActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             minOf(targetW, scaledW), minOf(targetH, scaledH))
     }
 
+    @Suppress("DEPRECATION")
     private fun applyDeepOceanTheme() {
         window.statusBarColor = Color.parseColor("#124260")
 
@@ -242,6 +245,7 @@ class MainActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun applyMidnightTheme() {
         window.statusBarColor = Color.parseColor("#1C1C1E")
         binding.root.setBackgroundColor(Color.parseColor("#1C1C1E"))
@@ -893,6 +897,7 @@ class MainActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
     private fun setupBottomBar() {
         binding.btnAdd.setOnClickListener {
             if (isMidnight) binding.btnAdd.setColorFilter(Color.parseColor("#1B3E98"))
+            SpringUtils.springPressEffect(binding.btnAdd)
             if (isSpreadMode) {
                 addPage()
                 if (isMidnight) binding.btnAdd.postDelayed({
@@ -906,6 +911,7 @@ class MainActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         }
         binding.btnDelete.setOnClickListener {
             if (isMidnight) binding.btnDelete.setColorFilter(Color.parseColor("#1B3E98"))
+            SpringUtils.springPressEffect(binding.btnDelete)
             if (isSpreadMode) {
                 deletePage()
                 if (isMidnight) binding.btnDelete.postDelayed({
@@ -927,6 +933,7 @@ class MainActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                     binding.btnShare.setColorFilter(Color.parseColor("#1C1C1E"))
                 }, 200)
             }
+            SpringUtils.springPressEffect(binding.btnShare)
             if (isSpreadMode) showShareSpreadDialog() else showShareLibraryDialog()
         }
         binding.btnDuplicate.setOnClickListener {
@@ -936,10 +943,12 @@ class MainActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                     binding.btnDuplicate.setColorFilter(Color.parseColor("#1C1C1E"))
                 }, 200)
             }
+            SpringUtils.springPressEffect(binding.btnDuplicate)
             if (isSpreadMode) duplicatePage()
         }
         binding.btnSettings.setOnClickListener {
             if (isMidnight) binding.btnSettings.setColorFilter(Color.parseColor("#1B3E98"))
+            SpringUtils.springPressEffect(binding.btnSettings)
             showSettingsPopup(onDismiss = {
                 if (isMidnight) binding.btnSettings.setColorFilter(Color.parseColor("#1C1C1E"))
             })

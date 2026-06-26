@@ -1,16 +1,16 @@
 package com.paperleaf.sketchbook.ui
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ObjectAnimator
 import android.content.Context
 import android.graphics.Color
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.PopupWindow
+import androidx.dynamicanimation.animation.DynamicAnimation
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
+import com.paperleaf.sketchbook.R
 
 class TooltipPopup(
     private val ctx: Context,
@@ -41,7 +41,7 @@ class TooltipPopup(
             shadowColor = Color.parseColor("#20000000")
         )
         setPadding(margin, margin, margin, margin)
-        elevation = dpToPx(ctx, 4).toFloat()
+        elevation = dpToPx(ctx, 6).toFloat()
     }
 
     private var animating = false
@@ -113,8 +113,8 @@ class TooltipPopup(
         super.showAtLocation(parent, gravity, x, y)
         if (!isShowing) return
         rootView.alpha = 0f
-        rootView.scaleX = 0.9f
-        rootView.scaleY = 0.9f
+        rootView.scaleX = 0.8f
+        rootView.scaleY = 0.8f
         startShowAnimation()
     }
 
@@ -144,31 +144,25 @@ class TooltipPopup(
         if (animating) return
         animating = true
 
-        val fadeIn = ObjectAnimator.ofFloat(rootView, "alpha", 0f, 1f).apply {
-            duration = animDuration
-            interpolator = AccelerateDecelerateInterpolator()
-        }
+        rootView.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(animDuration)
+            .withEndAction { animating = false }
+            .start()
 
-        val scaleX = ObjectAnimator.ofFloat(rootView, "scaleX", 0.9f, 1f).apply {
-            duration = animDuration
-            interpolator = AccelerateDecelerateInterpolator()
+        // Spring bounce for scale
+        SpringAnimation(rootView, DynamicAnimation.SCALE_X, 1f).apply {
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+            spring.stiffness = SpringForce.STIFFNESS_MEDIUM
+            setStartVelocity(4f)
+            start()
         }
-
-        val scaleY = ObjectAnimator.ofFloat(rootView, "scaleY", 0.9f, 1f).apply {
-            duration = animDuration
-            interpolator = AccelerateDecelerateInterpolator()
-        }
-
-        android.animation.AnimatorSet().apply {
-            playTogether(fadeIn, scaleX, scaleY)
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    animating = false
-                    rootView.alpha = 1f
-                    rootView.scaleX = 1f
-                    rootView.scaleY = 1f
-                }
-            })
+        SpringAnimation(rootView, DynamicAnimation.SCALE_Y, 1f).apply {
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+            spring.stiffness = SpringForce.STIFFNESS_MEDIUM
+            setStartVelocity(4f)
             start()
         }
     }
@@ -189,40 +183,20 @@ class TooltipPopup(
     private fun startDismissAnimation() {
         animating = true
 
-        val fadeOut = ObjectAnimator.ofFloat(rootView, "alpha", 1f, 0f).apply {
-            duration = animDuration
-            interpolator = AccelerateDecelerateInterpolator()
-        }
-
-        val scaleX = ObjectAnimator.ofFloat(rootView, "scaleX", 1f, 0.9f).apply {
-            duration = animDuration
-            interpolator = AccelerateDecelerateInterpolator()
-        }
-
-        val scaleY = ObjectAnimator.ofFloat(rootView, "scaleY", 1f, 0.9f).apply {
-            duration = animDuration
-            interpolator = AccelerateDecelerateInterpolator()
-        }
-
-        android.animation.AnimatorSet().apply {
-            playTogether(fadeOut, scaleX, scaleY)
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    animating = false
-                    isDismissing = false
-                    rootView.alpha = 0f
-                    rootView.scaleX = 0.9f
-                    rootView.scaleY = 0.9f
-                    super@TooltipPopup.dismiss()
-                }
-
-                override fun onAnimationCancel(animation: Animator) {
-                    animating = false
-                    isDismissing = false
-                }
-            })
-            start()
-        }
+        rootView.animate()
+            .alpha(0f)
+            .scaleX(0.8f)
+            .scaleY(0.8f)
+            .setDuration(animDuration)
+            .withEndAction {
+                animating = false
+                isDismissing = false
+                rootView.alpha = 0f
+                rootView.scaleX = 0.8f
+                rootView.scaleY = 0.8f
+                super.dismiss()
+            }
+            .start()
     }
 
     fun getRootView(): View = rootView

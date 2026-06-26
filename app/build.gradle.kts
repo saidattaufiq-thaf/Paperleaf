@@ -8,7 +8,7 @@ val enableNative = project.findProperty("enableNative") == "true"
 
 android {
     namespace = "com.paperleaf.sketchbook"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.paperleaf.sketchbook"
@@ -54,7 +54,7 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.cardview:cardview:1.0.0")
-
+    implementation("com.github.Dimezis:BlurView:version-3.2.0")
     // Room
     implementation("androidx.room:room-runtime:2.6.1")
     kapt("androidx.room:room-compiler:2.6.1")
@@ -68,5 +68,8 @@ dependencies {
     implementation(project(":PageFlip"))
 
     // Lottie animations
-    implementation("com.airbnb.android:lottie:6.4.0")
+    implementation("com.airbnb.android:lottie:6.7.1")
+
+    // DynamicAnimation (spring physics, smooth transitions)
+    implementation("androidx.dynamicanimation:dynamicanimation:1.0.0")
 }
