@@ -70,36 +70,42 @@ public class PageFlipView extends GLSurfaceView implements GLSurfaceView.Rendere
      * Configure PageFlip for realistic Heyzine-style animation
      */
     private void configurePageFlip() {
-        // Set mesh density for smooth curves (lower value = smoother)
-        // Default is 10, we set to 5 for very smooth curves like Heyzine
-        mPageFlip.setPixelsOfMesh(5);
+        // Set mesh density for smooth curves (lower value = smoother but more GPU intensive)
+        // Default is 10, we set to 3-5 for very smooth curves like Heyzine
+        mPageFlip.setPixelsOfMesh(3);
         
-        // Set shadow colors for realistic effect
-        // Edge shadow (top edge of folded page)
+        // Set shadow colors for realistic effect - Heyzine style
+        // Edge shadow (top edge of folded page) - softer gradient
         mPageFlip.setShadowColorOfFoldEdges(
-            0.1f,   // start color (darker)
-            0.6f,   // start alpha (more visible)
+            0.15f,  // start color (darker but not too harsh)
+            0.5f,   // start alpha (moderate visibility)
+            0.35f,  // end color (lighter)
+            0.0f    // end alpha (fade out completely)
+        );
+        
+        // Base shadow (shadow under the folded page) - more subtle
+        mPageFlip.setShadowColorOfFoldBase(
+            0.08f,  // start color (dark but soft)
+            0.6f,   // start alpha (visible but not overwhelming)
             0.3f,   // end color
             0.0f    // end alpha (fade out)
         );
         
-        // Base shadow (shadow under the folded page)
-        mPageFlip.setShadowColorOfFoldBase(
-            0.05f,  // start color (very dark)
-            0.8f,   // start alpha (very visible)
-            0.4f,   // end color
-            0.0f    // end alpha (fade out)
-        );
+        // Set shadow width for smoother transition
+        mPageFlip.setShadowWidthOfFoldEdges(4, 35, 0.25f);
+        mPageFlip.setShadowWidthOfFoldBase(2, 45, 0.35f);
         
-        // Set shadow width
-        mPageFlip.setShadowWidthOfFoldEdges(5, 40, 0.3f);
-        mPageFlip.setShadowWidthOfFoldBase(3, 50, 0.4f);
+        // Set semi-perimeter ratio for curl radius (higher = tighter curl)
+        // Heyzine uses around 0.75-0.85 for natural paper feel
+        mPageFlip.setSemiPerimeterRatio(0.8f);
         
-        // Set semi-perimeter ratio for curl radius
-        mPageFlip.setSemiPerimeterRatio(0.85f);        
-        // Enable click to flip
+        // Enable click to flip with wider activation area
         mPageFlip.enableClickToFlip(true);
         mPageFlip.setWidthRatioOfClickToFlip(0.5f);
+        
+        // Set mask alpha for back of fold page (transparency when flipping)
+        // This gives the see-through effect like real paper
+        mPageFlip.setMaskAlphaOfFold(180);
         
         // Set internal listener
         mPageFlip.setListener(new OnPageFlipListener() {
@@ -113,6 +119,14 @@ public class PageFlipView extends GLSurfaceView implements GLSurfaceView.Rendere
             public boolean canFlipBackward() {
                 return mExternalListener == null || 
                        mExternalListener.canFlipBackward();
+            }
+            
+            @Override
+            public void onPageFlipCompleted(boolean forward) {
+                // Notify external listener when flip completes
+                if (mExternalListener != null) {
+                    mExternalListener.onPageFlipCompleted(forward);
+                }
             }
         });
     }
