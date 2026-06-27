@@ -16,9 +16,8 @@
         android:id="@+id/textOverlay"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:minWidth="220dp"
-        android:minHeight="90dp"
+        android:minWidth="300dp"
+        android:minHeight="120dp"
         android:visibility="gone"/>
 
     <LinearLayout
@@ -91,7 +90,7 @@
         android:layout_gravity="bottom"
         android:orientation="vertical"
         android:gravity="center_horizontal"
-        android:background="@drawable/bg_glass_premium"
+        android:background="@drawable/bg_toolbar_solid"
         android:elevation="12dp">
 
         <LinearLayout
@@ -154,7 +153,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_eraser"
-                    android:background="@drawable/bg_glass_tool_btn"
+                    android:background="@android:color/transparent"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -163,7 +162,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_pen"
-                    android:background="@drawable/bg_glass_tool_btn"
+                    android:background="@android:color/transparent"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -172,7 +171,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_pencil"
-                    android:background="@drawable/bg_glass_tool_btn"
+                    android:background="@android:color/transparent"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -181,7 +180,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_brush"
-                    android:background="@drawable/bg_glass_tool_btn"
+                    android:background="@android:color/transparent"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -190,7 +189,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_marker"
-                    android:background="@drawable/bg_glass_tool_btn"
+                    android:background="@android:color/transparent"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -199,7 +198,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_ink_pen"
-                    android:background="@drawable/bg_glass_tool_btn"
+                    android:background="@android:color/transparent"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -208,7 +207,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_ruler"
-                    android:background="@drawable/bg_glass_tool_btn"
+                    android:background="@android:color/transparent"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -217,7 +216,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_keyboard"
-                    android:background="@drawable/bg_glass_tool_btn"
+                    android:background="@android:color/transparent"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -226,7 +225,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_scissors"
-                    android:background="@drawable/bg_glass_tool_btn"
+                    android:background="@android:color/transparent"
                     android:scaleType="center"
                     android:layout_marginEnd="1dp"/>
 
@@ -235,7 +234,7 @@
                     android:layout_width="38dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_roller"
-                    android:background="@drawable/bg_glass_tool_btn"
+                    android:background="@android:color/transparent"
                     android:scaleType="center"/>
 
                 <View
@@ -256,4 +255,37 @@
         </HorizontalScrollView>
     </LinearLayout>
 
+    <FrameLayout
+        android:id="@+id/rulerSizeBar"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_gravity="bottom"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginBottom="104dp"
+        android:background="#00000000"
+        android:visibility="gone">
+
+        <SeekBar
+            android:id="@+id/rulerSeekbar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center_vertical"
+            android:max="100"
+            android:progressDrawable="@drawable/seekbar_capsule_track"
+            android:thumb="@null"
+            android:paddingEnd="50dp"/>
+
+        <TextView
+            android:id="@+id/rulerSizeLabel"
+            android:layout_width="40dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="end|center_vertical"
+            android:gravity="center"
+            android:text="8"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:fontFamily="sans-serif-medium"
+            android:clickable="true"
+            android:focusable="true"/>
+    </FrameLayout>
 </FrameLayout>

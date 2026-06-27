@@ -14,7 +14,8 @@ object SelectionProcessor {
 
     // Set this to true once OpenCV is bundled for improved algorithms
     private var openCvAvailable = false
-    var tolerance = 40  // Made configurable for better control
+    var tolerance = 40
+        set(value) { field = value.coerceIn(10, 100) }
     private val morphologyRadius = 2
     
     // Edge detection sensitivity for smart cut
@@ -36,10 +37,6 @@ object SelectionProcessor {
 
     fun isInitialized(): Boolean = openCvAvailable
     
-    fun setTolerance(value: Int) {
-        tolerance = value.coerceIn(10, 100)
-    }
-
     // ─── LASSO SMOOTHING ──────────────────────────────────────────
 
     suspend fun smoothLassoPath(
@@ -475,7 +472,7 @@ object SelectionProcessor {
         val dg = g1 - g2
         val db = b1 - b2
         // Approximation of CIE76 color difference
-        return kotlin.math.sqrt(((512 + rMean) * dr * dr shr 8) + 4 * dg * dg + ((767 - rMean) * db * db shr 8)).toInt()
+        return kotlin.math.sqrt((((512 + rMean) * dr * dr / 256.0) + 4.0 * dg * dg + ((767 - rMean) * db * db / 256.0))).toInt()
     }
 
     private fun averageColor(colors: List<Int>): Int {

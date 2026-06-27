@@ -49,7 +49,7 @@ class LoadingOverlay private constructor(
 
         if (useLottie) {
             val lottie = LottieAnimationView(activity).apply {
-                setAnimation(R.raw.loading_spinner)
+                setAnimation(R.raw.paperleaf_loading)
                 repeatCount = ValueAnimator.INFINITE
                 speed = 1.2f
                 layoutParams = FrameLayout.LayoutParams(

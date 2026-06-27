@@ -110,7 +110,9 @@ class TooltipPopup(
     }
 
     override fun showAtLocation(parent: View, gravity: Int, x: Int, y: Int) {
-        super.showAtLocation(parent, gravity, x, y)
+        try {
+            super.showAtLocation(parent, gravity, x, y)
+        } catch (_: Exception) { return }
         if (!isShowing) return
         rootView.alpha = 0f
         rootView.scaleX = 0.8f

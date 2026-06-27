@@ -1,5 +1,6 @@
 package com.paperleaf.sketchbook.ui
 
+import android.app.Activity
 import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.GradientDrawable
@@ -45,19 +46,19 @@ class ColorPickerPopup(
 
     private fun buildView(): View {
         val dp = context.resources.displayMetrics.density
-        val pad = (16 * dp).toInt()
-        val sliderW = (220 * dp).toInt()
-        val sliderH = (32 * dp).toInt()
+        val pad = (12 * dp).toInt()
+        val sliderW = (160 * dp).toInt()
+        val sliderH = (16 * dp).toInt()
 
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, pad, pad, pad)
-            minimumWidth = (260 * dp).toInt()
+            minimumWidth = (180 * dp).toInt()
         }
 
         // Color preview circle
         val preview = View(context).apply {
-            layoutParams = LinearLayout.LayoutParams((48 * dp).toInt(), (48 * dp).toInt()).also {
+            layoutParams = LinearLayout.LayoutParams((32 * dp).toInt(), (32 * dp).toInt()).also {
                 it.gravity = Gravity.CENTER_HORIZONTAL
                 it.bottomMargin = (12 * dp).toInt()
             }
@@ -110,13 +111,17 @@ class ColorPickerPopup(
     }
 
     fun show() {
+        if (context is Activity && (context.isFinishing || context.isDestroyed)) return
         val loc = IntArray(2)
         anchorView.getLocationOnScreen(loc)
         val dp = context.resources.displayMetrics.density
-        popup.showAtLocation(anchorView, Gravity.NO_GRAVITY,
-            loc[0] - (90 * dp).toInt(),
-            loc[1] - (200 * dp).toInt()
-        )
+        val popupW = (184 * dp).toInt()
+        val x = loc[0] + anchorView.width / 2 - popupW / 2
+        try {
+            popup.showAtLocation(anchorView, Gravity.NO_GRAVITY, x,
+                loc[1] - (200 * dp).toInt()
+            )
+        } catch (_: Exception) { }
     }
 
     fun dismiss() = popup.dismiss()
@@ -140,6 +145,8 @@ class GradientSliderView(
     private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val thumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
+        strokeWidth = 6f * dp
+        strokeCap = Paint.Cap.ROUND
         setShadowLayer(4f, 0f, 2f, Color.parseColor("#60000000"))
     }
     private val dp = resources.displayMetrics.density
@@ -166,10 +173,10 @@ class GradientSliderView(
         )
         canvas.drawRoundRect(trackRect, radius, radius, trackPaint)
 
-        // Thumb
+        // Thumb line
         val tx = trackRect.left + value * (trackRect.right - trackRect.left)
         setLayerType(LAYER_TYPE_SOFTWARE, null)
-        canvas.drawCircle(tx, cy, radius - dp, thumbPaint)
+        canvas.drawLine(tx, trackRect.top + 2 * dp, tx, trackRect.bottom - 2 * dp, thumbPaint)
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {

@@ -15,6 +15,7 @@ import android.os.Build
 import android.content.ComponentCallbacks2
 import android.os.Bundle
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -27,6 +28,7 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.Space
 import android.widget.TextView
 import android.widget.Toast
@@ -66,9 +68,6 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         const val EXTRA_BOOK_ID     = "extra_book_id"
         const val EXTRA_PAGE_NUMBER = "extra_page_number"
 
-        const val SIZE_SMALL  = 6f
-        const val SIZE_MEDIUM = 16f
-        const val SIZE_LARGE  = 36f
     }
 
     // ─── PROPERTIES & STATE ──────────────────────────────────────
@@ -92,12 +91,25 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
 
     private var activeColorIndex = 0
     private val colorViews = mutableListOf<View>()
-    
+
+    private val defaultToolSizes = mapOf(
+        BrushSettings.TOOL_FOUNTAIN_PEN to 12f,
+        BrushSettings.TOOL_PENCIL        to 6f,
+        BrushSettings.TOOL_MARKER        to 24f,
+        BrushSettings.TOOL_INK_PEN       to 10f,
+        BrushSettings.TOOL_ERASER        to 30f,
+        DrawingView.TOOL_BRUSH           to 36f,
+        DrawingView.TOOL_ROLLER          to 20f,
+        DrawingView.TOOL_RULER           to 8f
+    )
+    private val toolSizes = defaultToolSizes.toMutableMap()
+
     // Popups
     private var colorPickerPopup: ColorPickerPopup? = null
     private var shapePopup: TooltipPopup? = null
     private var layersPopup: PopupWindow? = null
     private var scissorPopup: TooltipPopup? = null
+    private var cancelPopup: PopupWindow? = null
     private var imageSourcePopup: TooltipPopup? = null
     private var imageEditToolbar: PopupWindow? = null
 
@@ -116,7 +128,8 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
     private val toolBtns get() = listOf(
         binding.btnPen, binding.btnPencil, binding.btnMarker,
         binding.btnInkPen, binding.btnEraser,
-        binding.btnBrush, binding.btnRuler, binding.btnKeyboard, binding.btnScissors, binding.btnRoller
+        binding.btnBrush, binding.btnRuler, binding.btnKeyboard, binding.btnScissors, binding.btnRoller,
+        binding.btnImportPhoto
     )
 
     private fun decodeUri(uri: Uri): Bitmap? {
@@ -267,9 +280,28 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             showTouchEffect(binding.btnRedo)
         }
         binding.btnBrush.setOnClickListener    { onToolClick(DrawingView.TOOL_BRUSH, it) }
-        binding.btnRuler.setOnClickListener    { showShapePopup(it) }
+        binding.btnRuler.setOnClickListener    {
+            val dv = binding.drawingView
+            layersPopup?.dismiss()
+            imageSourcePopup?.dismiss()
+            dismissCancelPopup()
+            binding.btnImportPhoto.alpha = 0.35f
+            SpringAnimation(binding.btnImportPhoto, DynamicAnimation.TRANSLATION_Y, 0f).apply {
+                spring.dampingRatio = SpringForce.DAMPING_RATIO_HIGH_BOUNCY; spring.stiffness = SpringForce.STIFFNESS_MEDIUM; start()
+            }
+            if (dv.brushSettings.toolType != DrawingView.TOOL_RULER) {
+                if (textOverlayActive) cancelTextOverlay()
+                dv.activeShape = DrawingView.ShapeType.LINE
+                dv.brushSettings.toolType = DrawingView.TOOL_RULER
+                highlightRulerBtn()
+                showRulerSizeBar()
+            } else {
+                hideRulerSizeBar()
+                showShapePopup(binding.btnMove, 0)
+            }
+        }
         binding.btnKeyboard.setOnClickListener { onKeyboardToolClick(it) }
-        binding.btnScissors.setOnClickListener { showScissorPopup(it) }
+        binding.btnScissors.setOnClickListener { showScissorPopup() }
         binding.btnRoller.setOnClickListener   { onToolClick(DrawingView.TOOL_ROLLER, it) }
         binding.btnLayers.setColorFilter(defaultIcon)
         binding.btnLayers.setOnClickListener   { toggleLayersPopup() }
@@ -281,6 +313,13 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         binding.btnEraser.setOnClickListener { onToolClick(BrushSettings.TOOL_ERASER, it) }
 
         binding.btnMove.setOnClickListener { toggleTransformMode() }
+
+        setupRulerSizeBar()
+
+        binding.drawingView.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) layersPopup?.dismiss()
+            false
+        }
 
         // Callback Layers
         binding.drawingView.onLayersChanged = {
@@ -319,7 +358,27 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
 
         // Import Photo Button — show source selection popup
         binding.btnImportPhoto.setOnClickListener {
-            showImageSourcePopup(it)
+            imageSourcePopup?.dismiss()
+            val dp = resources.displayMetrics.density
+            toolBtns.forEach { btn ->
+                btn.isSelected = false
+                btn.alpha = if (btn == binding.btnImportPhoto) 1f else 0.35f
+                btn.imageTintList = null
+                SpringAnimation(btn, DynamicAnimation.TRANSLATION_Y, 0f).apply {
+                    spring.dampingRatio = SpringForce.DAMPING_RATIO_HIGH_BOUNCY; spring.stiffness = SpringForce.STIFFNESS_MEDIUM; start()
+                }
+                SpringAnimation(btn, DynamicAnimation.TRANSLATION_Z, 0f).apply {
+                    spring.dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY; spring.stiffness = SpringForce.STIFFNESS_HIGH; start()
+                }
+            }
+            binding.btnImportPhoto.isSelected = true
+            SpringAnimation(binding.btnImportPhoto, DynamicAnimation.TRANSLATION_Y, -(6f * dp)).apply {
+                spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY; spring.stiffness = SpringForce.STIFFNESS_LOW; start()
+            }
+            SpringAnimation(binding.btnImportPhoto, DynamicAnimation.TRANSLATION_Z, 6f * dp).apply {
+                spring.dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY; spring.stiffness = SpringForce.STIFFNESS_MEDIUM; start()
+            }
+            showImageSourcePopup(binding.btnMove)
         }
 
         selectTool(BrushSettings.TOOL_FOUNTAIN_PEN)
@@ -328,8 +387,19 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             onKeyboardTap(bmpX, bmpY)
         }
 
-        binding.drawingView.onTextLayerTap = { layer ->
+        binding.drawingView.onShowAddTextPopupView = { vx, vy ->
+            showAddTextPopup(vx, vy)
+        }
+        binding.drawingView.onShowAddTextPopup = { x, y ->
+            // bitmap coords – unused for popup positioning
+        }
+
+        binding.drawingView.onDoubleTapTextLayer = { layer ->
             onTextLayerTap(layer)
+        }
+
+        binding.drawingView.onTextLayerTap = { layer ->
+            // do nothing on single tap – only drag is allowed
         }
 
         binding.drawingView.onTextLayerWarning = {
@@ -405,15 +475,21 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
     private var textDialogLayer: DrawingView.ImageLayer? = null
     private var textOverlayActive = false
     private var editingTextLayer: DrawingView.ImageLayer? = null
+    private var textFormatBar: PopupWindow? = null
+    private var textFontName = "Sans Serif"
+    private var textIsBold = false
+    private var textIsItalic = false
+    private var textIsUnderline = false
+    private var textIsVertical = false
+    private var textAlignIdx = 0
+    private var textOverlayIsEdit = false
 
     @Suppress("UNUSED_PARAMETER")
     private fun onKeyboardToolClick(view: View) {
         if (textOverlayActive) {
-            showTextFormattingPopup()
+            showTextFormatBar()
         } else {
             selectTool(DrawingView.TOOL_KEYBOARD)
-            val sel = binding.drawingView.selectedLayerOrNull
-            showTextOverlay(if (sel?.isTextLayer == true) sel else null)
         }
     }
 
@@ -699,6 +775,7 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             existingLayer.textAlign = align
             existingLayer.textIsBold = isBold
             existingLayer.textIsItalic = isItalic
+            existingLayer.textFontPath = fontPath
             rerenderTextLayer(existingLayer, text, fontSize, color, align, fontPath, isBold, isItalic)
             binding.drawingView.invalidate()
             showTextToolbarPopup(existingLayer)
@@ -717,7 +794,8 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                 textFontSize = fontSize,
                 textAlign = align,
                 textIsBold = isBold,
-                textIsItalic = isItalic
+                textIsItalic = isItalic,
+                textFontPath = fontPath
             )
             binding.drawingView.layers.forEach { it.isSelected = false }
             binding.drawingView.layers.add(layer)
@@ -730,7 +808,8 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
 
     private fun renderTextToBitmap(
         text: String, fontSize: Float, color: Int, align: Paint.Align, fontPath: String,
-        isBold: Boolean = false, isItalic: Boolean = false
+        isBold: Boolean = false, isItalic: Boolean = false,
+        isUnderline: Boolean = false, isVertical: Boolean = false
     ): Bitmap {
         val pad = 20f
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -754,35 +833,57 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                     typeface = Typeface.create(typeface, Typeface.ITALIC)
                 }
             }
+            if (isUnderline) this.isUnderlineText = true
             this.textAlign = align
         }
-        val lines = text.split('\n')
         val fm = paint.fontMetrics
         val lineH = fm.descent - fm.ascent
-        val textW = paint.measureText(text)
-        val textH = lineH * lines.size
-        val bmpW = ceil(textW + pad * 2).toInt().coerceAtLeast(1)
-        val bmpH = ceil(textH + pad * 2).toInt().coerceAtLeast(1)
-        val bmp = Bitmap.createBitmap(bmpW, bmpH, Bitmap.Config.ARGB_8888)
-        val cv = Canvas(bmp)
-        lines.forEachIndexed { i, line ->
-            val x = when (align) {
-                Paint.Align.CENTER -> bmpW / 2f
-                Paint.Align.RIGHT -> bmpW - pad
-                else -> pad
+        if (isVertical) {
+            val chars = text.toList()
+            val textH = lineH * chars.size
+            val textW = paint.measureText(chars.joinToString(""))
+            val bmpW = ceil(textW + pad * 2).toInt().coerceAtLeast(1)
+            val bmpH = ceil(textH + pad * 2).toInt().coerceAtLeast(1)
+            val bmp = Bitmap.createBitmap(bmpW, bmpH, Bitmap.Config.ARGB_8888)
+            val cv = Canvas(bmp)
+            chars.forEachIndexed { i, ch ->
+                val x = when (align) {
+                    Paint.Align.CENTER -> bmpW / 2f
+                    Paint.Align.RIGHT -> bmpW - pad
+                    else -> pad
+                }
+                val y = pad + lineH * i + fm.descent
+                cv.drawText(ch.toString(), x, y, paint)
             }
-            val y = pad + lineH * i + fm.descent
-            cv.drawText(line, x, y, paint)
+            return bmp
+        } else {
+            val lines = text.split('\n')
+            val textW = paint.measureText(text)
+            val textH = lineH * lines.size
+            val bmpW = ceil(textW + pad * 2).toInt().coerceAtLeast(1)
+            val bmpH = ceil(textH + pad * 2).toInt().coerceAtLeast(1)
+            val bmp = Bitmap.createBitmap(bmpW, bmpH, Bitmap.Config.ARGB_8888)
+            val cv = Canvas(bmp)
+            lines.forEachIndexed { i, line ->
+                val x = when (align) {
+                    Paint.Align.CENTER -> bmpW / 2f
+                    Paint.Align.RIGHT -> bmpW - pad
+                    else -> pad
+                }
+                val y = pad + lineH * i + fm.descent
+                cv.drawText(line, x, y, paint)
+            }
+            return bmp
         }
-        return bmp
     }
 
     private fun rerenderTextLayer(
         layer: DrawingView.ImageLayer,
         text: String, fontSize: Float, color: Int, align: Paint.Align, fontPath: String,
-        isBold: Boolean = false, isItalic: Boolean = false
+        isBold: Boolean = false, isItalic: Boolean = false,
+        isUnderline: Boolean = false, isVertical: Boolean = false
     ) {
-        val bmp = renderTextToBitmap(text, fontSize, color, align, fontPath, isBold, isItalic)
+        val bmp = renderTextToBitmap(text, fontSize, color, align, fontPath, isBold, isItalic, isUnderline, isVertical)
         layer.bitmap = bmp
         layer.canvas = Canvas(bmp)
     }
@@ -912,6 +1013,8 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
     }
 
     private fun showTextOverlay(existingLayer: DrawingView.ImageLayer? = null) {
+        addTextPopup?.dismiss()
+        addTextPopup = null
         editingTextLayer = existingLayer
         val dv = binding.drawingView
         val overlay = binding.textOverlay
@@ -923,10 +1026,19 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             overlay.textFontSize = existingLayer.textFontSize
             overlay.isBold = existingLayer.textIsBold
             overlay.isItalic = existingLayer.textIsItalic
+            overlay.fontPath = existingLayer.textFontPath
+            textFontName = if (existingLayer.textFontPath.isEmpty()) "Sans Serif" else
+                listOf("Sans Serif", "Serif", "Monospace").getOrElse(
+                    listOf("", "fonts/Lora-VariableFont_wght.ttf", "").indexOf(existingLayer.textFontPath)
+                ) { "Sans Serif" }
+            textIsBold = existingLayer.textIsBold
+            textIsItalic = existingLayer.textIsItalic
+            textIsUnderline = existingLayer.textIsUnderline
+            textIsVertical = existingLayer.textIsVertical
             val align = when (existingLayer.textAlign) {
-                Paint.Align.LEFT -> Layout.Alignment.ALIGN_NORMAL
-                Paint.Align.CENTER -> Layout.Alignment.ALIGN_CENTER
-                Paint.Align.RIGHT -> Layout.Alignment.ALIGN_OPPOSITE
+                Paint.Align.LEFT -> { textAlignIdx = 0; Layout.Alignment.ALIGN_NORMAL }
+                Paint.Align.CENTER -> { textAlignIdx = 1; Layout.Alignment.ALIGN_CENTER }
+                Paint.Align.RIGHT -> { textAlignIdx = 2; Layout.Alignment.ALIGN_OPPOSITE }
             }
             overlay.textAlignment = align
 
@@ -944,13 +1056,20 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             overlay.textAlignment = Layout.Alignment.ALIGN_NORMAL
             overlay.setTextScale(1f)
             overlay.setTextRotation(0f)
+            textIsBold = false; textIsItalic = false; textIsUnderline = false; textIsVertical = false; textAlignIdx = 0
         }
+        textIsVertical = existingLayer?.textIsVertical ?: false
 
+        textOverlayIsEdit = existingLayer != null
+        overlay.isEditing = textOverlayIsEdit
+        overlay.showHandles = false
+        overlay.showActionButtons = false
         overlay.visibility = View.VISIBLE
         overlay.post {
             val cx = (dv.width - overlay.width) / 2f
-            val cy = (dv.height / 3f) - overlay.height / 2f
+            val cy = (dv.height - overlay.height) / 2f
             overlay.setTextPosition(cx.coerceAtLeast(0f), cy.coerceAtLeast(0f))
+            showTextFormatBar()
         }
         overlay.requestEditTextFocus()
         textOverlayActive = true
@@ -991,7 +1110,10 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             layer.textAlign = align
             layer.textIsBold = overlay.isBold
             layer.textIsItalic = overlay.isItalic
-            val bmp = renderTextToBitmap(text, fontSize, color, align, overlay.fontPath, overlay.isBold, overlay.isItalic)
+            layer.textIsUnderline = textIsUnderline
+            layer.textIsVertical = textIsVertical
+            layer.textFontPath = overlay.fontPath
+            val bmp = renderTextToBitmap(text, fontSize, color, align, overlay.fontPath, overlay.isBold, overlay.isItalic, textIsUnderline, textIsVertical)
             layer.bitmap = bmp
             layer.canvas = Canvas(bmp)
             layer.x = bmpX
@@ -1000,7 +1122,7 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             layer.rotation = rotation
             dv.invalidate()
         } else {
-            val bmp = renderTextToBitmap(text, fontSize, color, align, overlay.fontPath, overlay.isBold, overlay.isItalic)
+            val bmp = renderTextToBitmap(text, fontSize, color, align, overlay.fontPath, overlay.isBold, overlay.isItalic, textIsUnderline, textIsVertical)
             val layerNum = dv.layers.size + 1
             val layer = DrawingView.ImageLayer(
                 bitmap = bmp, canvas = Canvas(bmp),
@@ -1012,7 +1134,10 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                 textFontSize = fontSize,
                 textAlign = align,
                 textIsBold = overlay.isBold,
-                textIsItalic = overlay.isItalic
+                textIsItalic = overlay.isItalic,
+                textIsUnderline = textIsUnderline,
+                textIsVertical = textIsVertical,
+                textFontPath = overlay.fontPath
             )
             dv.layers.forEach { it.isSelected = false }
             dv.layers.add(layer)
@@ -1028,170 +1153,326 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
     }
 
     private fun hideTextOverlay() {
+        addTextPopup?.dismiss()
+        addTextPopup = null
+        dismissKeyboard()
+        textFormatBar?.dismiss()
+        textFormatBar = null
         binding.textOverlay.visibility = View.GONE
+        binding.textOverlay.showActionButtons = true
         textOverlayActive = false
         editingTextLayer = null
-        dismissKeyboard()
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
     }
 
-    private fun showTextFormattingPopup() {
+    private fun showTextFormatBar() {
         val overlay = binding.textOverlay
         val dp = resources.displayMetrics.density
 
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (12 * dp).toInt())
+        if (textFormatBar?.isShowing == true) {
+            updateFormatBar()
+            return
         }
 
-        // ── Size ──
-        val sizeRow = LinearLayout(this).apply {
+        val scrollContent = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        sizeRow.addView(TextView(this).apply {
-            text = "Size"
-            textSize = 13f
-            setTextColor(Color.parseColor("#AAAAAA"))
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        val sizeEdit = EditText(this).apply {
-            setText(overlay.textFontSize.toInt().toString())
-            setTextColor(Color.WHITE)
-            textSize = 14f
+
+        // Font name with dropdown arrow
+        val fontBtn = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
+            setPadding((8 * dp).toInt(), 0, (4 * dp).toInt(), 0)
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#3A3A3A"))
                 cornerRadius = 8f * dp
             }
-            setPadding((12 * dp).toInt(), (6 * dp).toInt(), (12 * dp).toInt(), (6 * dp).toInt())
-            layoutParams = LinearLayout.LayoutParams((70 * dp).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-        }
-        sizeRow.addView(sizeEdit)
-        content.addView(sizeRow)
-
-        content.addView(Space(this).apply {
-            layoutParams = LinearLayout.LayoutParams(1, (12 * dp).toInt())
-        })
-
-        // ── Bold / Italic ──
-        val styleRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        styleRow.addView(TextView(this).apply {
-            text = "Style"
-            textSize = 13f
-            setTextColor(Color.parseColor("#AAAAAA"))
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        val boldBtn = TextView(this).apply {
-            text = "B"
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setTextColor(if (overlay.isBold) Color.BLACK else Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(if (overlay.isBold) Color.WHITE else Color.parseColor("#3A3A3A"))
-                cornerRadius = 6f * dp
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, (34 * dp).toInt()).apply { marginEnd = (4 * dp).toInt() }
+            setOnClickListener { v ->
+                val fonts = listOf("Sans Serif" to "", "Serif" to "fonts/Lora-VariableFont_wght.ttf", "Monospace" to "")
+                val popup = android.widget.ListPopupWindow(this@SketchActivity)
+                popup.anchorView = v
+                popup.setAdapter(android.widget.ArrayAdapter(
+                    this@SketchActivity,
+                    android.R.layout.simple_list_item_1,
+                    fonts.map { it.first }
+                ))
+                popup.setOnItemClickListener { _, _, which, _ ->
+                    textFontName = fonts[which].first
+                    overlay.fontPath = fonts[which].second
+                    (v as? ViewGroup)?.getChildAt(0)?.let { (it as? TextView)?.text = textFontName }
+                    popup.dismiss()
+                }
+                popup.width = (100 * dp).toInt()
+                popup.show()
             }
-            layoutParams = LinearLayout.LayoutParams((44 * dp).toInt(), (40 * dp).toInt()).apply {
-                rightMargin = (6 * dp).toInt()
-            }
-        }
-        val italicBtn = TextView(this).apply {
-            text = "I"
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setTextColor(if (overlay.isItalic) Color.BLACK else Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(if (overlay.isItalic) Color.WHITE else Color.parseColor("#3A3A3A"))
-                cornerRadius = 6f * dp
-            }
-            layoutParams = LinearLayout.LayoutParams((44 * dp).toInt(), (40 * dp).toInt())
-        }
-        styleRow.addView(boldBtn)
-        styleRow.addView(italicBtn)
-        content.addView(styleRow)
-
-        content.addView(Space(this).apply {
-            layoutParams = LinearLayout.LayoutParams(1, (12 * dp).toInt())
-        })
-
-        // ── Alignment ──
-        val alignRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        alignRow.addView(TextView(this).apply {
-            text = "Align"
-            textSize = 13f
-            setTextColor(Color.parseColor("#AAAAAA"))
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        data class AlignOption(val label: String, val align: Layout.Alignment)
-        val alignOptions = listOf(
-            AlignOption("L", Layout.Alignment.ALIGN_NORMAL),
-            AlignOption("C", Layout.Alignment.ALIGN_CENTER),
-            AlignOption("R", Layout.Alignment.ALIGN_OPPOSITE)
-        )
-        val alignChips = mutableListOf<TextView>()
-        for (opt in alignOptions) {
-            alignChips.add(TextView(this).apply {
-                text = opt.label
-                textSize = 13f
-                gravity = Gravity.CENTER
-                alpha = if (overlay.textAlignment == opt.align) 1f else 0.5f
+            addView(TextView(this@SketchActivity).apply {
+                text = textFontName
+                textSize = 11f
                 setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+            })
+            addView(ImageView(this@SketchActivity).apply {
+                setImageResource(R.drawable.arrow_down)
+                setColorFilter(Color.parseColor("#AAAAAA"))
+                layoutParams = LinearLayout.LayoutParams((12 * dp).toInt(), (12 * dp).toInt()).apply {
+                    leftMargin = (2 * dp).toInt()
+                }
+                scaleType = ImageView.ScaleType.FIT_CENTER
+            })
+        }
+        scrollContent.addView(fontBtn)
+
+        // Color circle
+        val colorIv = ImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams((34 * dp).toInt(), (34 * dp).toInt()).apply { marginEnd = (4 * dp).toInt() }
+            setImageDrawable(GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setSize((22 * dp).toInt(), (22 * dp).toInt())
+                setColor(overlay.textColor)
+            })
+        }
+        colorIv.setOnClickListener {
+            ColorPickerPopup(
+                context = this@SketchActivity,
+                anchorView = colorIv,
+                initialColor = overlay.textColor,
+                onColorChanged = { c ->
+                    overlay.textColor = c
+                    colorIv.setImageDrawable(GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setSize((22 * dp).toInt(), (22 * dp).toInt())
+                        setColor(c)
+                    })
+                },
+                onDismiss = { }
+            ).show()
+        }
+        scrollContent.addView(colorIv)
+
+        // Align cycling button (LEFT → CENTER → RIGHT → ...)
+        val alignDrawables = intArrayOf(R.drawable.align_left, R.drawable.align_center, R.drawable.align_right)
+        val alignLayouts = arrayOf(Layout.Alignment.ALIGN_NORMAL, Layout.Alignment.ALIGN_CENTER, Layout.Alignment.ALIGN_OPPOSITE)
+        scrollContent.addView(ImageView(this).apply {
+            setImageResource(alignDrawables[textAlignIdx])
+            setColorFilter(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#3A3A3A"))
+                cornerRadius = 8f * dp
+            }
+            layoutParams = LinearLayout.LayoutParams((34 * dp).toInt(), (34 * dp).toInt()).apply { marginEnd = (4 * dp).toInt() }
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding((6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt())
+            setOnClickListener {
+                textAlignIdx = (textAlignIdx + 1) % 3
+                overlay.textAlignment = alignLayouts[textAlignIdx]
+                setImageResource(alignDrawables[textAlignIdx])
+            }
+        })
+
+        // Font size
+        scrollContent.addView(TextView(this).apply {
+            text = "−"
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#3A3A3A"))
+                cornerRadius = 8f * dp
+            }
+            layoutParams = LinearLayout.LayoutParams((32 * dp).toInt(), (34 * dp).toInt()).apply { marginEnd = (2 * dp).toInt() }
+            setOnClickListener {
+                val sz = (overlay.textFontSize - 2f).coerceAtLeast(8f)
+                overlay.textFontSize = sz
+                this@apply.text = sz.toInt().toString()
+            }
+        })
+        val sizeLabel = TextView(this).apply {
+            text = overlay.textFontSize.toInt().toString()
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#3A3A3A"))
+                cornerRadius = 8f * dp
+            }
+            layoutParams = LinearLayout.LayoutParams((40 * dp).toInt(), (34 * dp).toInt()).apply { marginEnd = (2 * dp).toInt() }
+        }
+        sizeLabel.setOnClickListener {
+            val input = android.widget.EditText(this@SketchActivity).apply {
+                setText(overlay.textFontSize.toInt().toString())
+                inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                selectAll()
+            }
+            android.app.AlertDialog.Builder(this@SketchActivity)
+                .setTitle("Font Size")
+                .setView(input)
+                .setPositiveButton("OK") { _, _ ->
+                    val v = input.text.toString().toIntOrNull()?.coerceIn(8, 200) ?: return@setPositiveButton
+                    overlay.textFontSize = v.toFloat()
+                    sizeLabel.text = v.toString()
+                }
+                .setNegativeButton("Batal", null)
+                .show()
+        }
+        scrollContent.addView(sizeLabel)
+        scrollContent.addView(TextView(this).apply {
+            text = "+"
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#3A3A3A"))
+                cornerRadius = 8f * dp
+            }
+            layoutParams = LinearLayout.LayoutParams((32 * dp).toInt(), (34 * dp).toInt()).apply { marginEnd = (6 * dp).toInt() }
+            setOnClickListener {
+                val sz = (overlay.textFontSize + 2f).coerceAtMost(200f)
+                overlay.textFontSize = sz
+                sizeLabel.text = sz.toInt().toString()
+            }
+        })
+
+        // Bold icon
+        scrollContent.addView(ImageView(this).apply {
+            setImageResource(R.drawable.bold)
+            setColorFilter(if (textIsBold) Color.BLACK else Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(if (textIsBold) Color.WHITE else Color.parseColor("#3A3A3A"))
+                cornerRadius = 8f * dp
+            }
+            layoutParams = LinearLayout.LayoutParams((34 * dp).toInt(), (34 * dp).toInt()).apply { marginEnd = (2 * dp).toInt() }
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding((7 * dp).toInt(), (7 * dp).toInt(), (7 * dp).toInt(), (7 * dp).toInt())
+            setOnClickListener {
+                textIsBold = !textIsBold; overlay.isBold = textIsBold
+                setColorFilter(if (textIsBold) Color.BLACK else Color.WHITE)
+                (background as GradientDrawable).setColor(if (textIsBold) Color.WHITE else Color.parseColor("#3A3A3A"))
+            }
+        })
+
+        // Italic icon
+        scrollContent.addView(ImageView(this).apply {
+            setImageResource(R.drawable.italic)
+            setColorFilter(if (textIsItalic) Color.BLACK else Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(if (textIsItalic) Color.WHITE else Color.parseColor("#3A3A3A"))
+                cornerRadius = 8f * dp
+            }
+            layoutParams = LinearLayout.LayoutParams((34 * dp).toInt(), (34 * dp).toInt()).apply { marginEnd = (2 * dp).toInt() }
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding((7 * dp).toInt(), (7 * dp).toInt(), (7 * dp).toInt(), (7 * dp).toInt())
+            setOnClickListener {
+                textIsItalic = !textIsItalic; overlay.isItalic = textIsItalic
+                setColorFilter(if (textIsItalic) Color.BLACK else Color.WHITE)
+                (background as GradientDrawable).setColor(if (textIsItalic) Color.WHITE else Color.parseColor("#3A3A3A"))
+            }
+        })
+
+        // Underline icon
+        scrollContent.addView(ImageView(this).apply {
+            setImageResource(R.drawable.underline)
+            setColorFilter(if (textIsUnderline) Color.BLACK else Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(if (textIsUnderline) Color.WHITE else Color.parseColor("#3A3A3A"))
+                cornerRadius = 8f * dp
+            }
+            layoutParams = LinearLayout.LayoutParams((34 * dp).toInt(), (34 * dp).toInt()).apply { marginEnd = (6 * dp).toInt() }
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding((7 * dp).toInt(), (7 * dp).toInt(), (7 * dp).toInt(), (7 * dp).toInt())
+            setOnClickListener {
+                textIsUnderline = !textIsUnderline
+                setColorFilter(if (textIsUnderline) Color.BLACK else Color.WHITE)
+                (background as GradientDrawable).setColor(if (textIsUnderline) Color.WHITE else Color.parseColor("#3A3A3A"))
+            }
+        })
+
+        // Vertical / Horizontal toggle
+        scrollContent.addView(ImageView(this).apply {
+            setImageResource(if (textIsVertical) R.drawable.vertical else R.drawable.horizontal)
+            setColorFilter(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#3A3A3A"))
+                cornerRadius = 8f * dp
+            }
+            layoutParams = LinearLayout.LayoutParams((34 * dp).toInt(), (34 * dp).toInt()).apply { marginEnd = (4 * dp).toInt() }
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding((6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt())
+            setOnClickListener {
+                textIsVertical = !textIsVertical
+                setImageResource(if (textIsVertical) R.drawable.vertical else R.drawable.horizontal)
+            }
+        })
+
+        // Trash (delete) — only when editing existing text
+        if (editingTextLayer != null) {
+            scrollContent.addView(ImageView(this).apply {
+                setImageResource(R.drawable.trash)
+                setColorFilter(Color.WHITE)
                 background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#444444"))
+                    setColor(Color.parseColor("#EF5350"))
                     cornerRadius = 8f * dp
                 }
-                layoutParams = LinearLayout.LayoutParams(
-                    (44 * dp).toInt(), (40 * dp).toInt()
-                ).apply { if (opt != alignOptions.first()) leftMargin = (4 * dp).toInt() }
+                layoutParams = LinearLayout.LayoutParams((34 * dp).toInt(), (34 * dp).toInt()).apply { marginEnd = (4 * dp).toInt() }
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setPadding((7 * dp).toInt(), (7 * dp).toInt(), (7 * dp).toInt(), (7 * dp).toInt())
                 setOnClickListener {
-                    overlay.textAlignment = opt.align
-                    alignChips.forEach { it.alpha = 0.5f }
-                    this.alpha = 1f
+                    val layer = editingTextLayer
+                    if (layer != null && binding.drawingView.layers.contains(layer)) {
+                        binding.drawingView.layers.remove(layer)
+                        binding.drawingView.layers.forEach { it.isSelected = false }
+                        binding.drawingView.onLayersChanged?.invoke()
+                        binding.drawingView.invalidate()
+                    }
+                    hideTextOverlay()
                 }
             })
         }
-        alignChips.forEach { alignRow.addView(it) }
-        content.addView(alignRow)
 
-        content.addView(Space(this).apply {
-            layoutParams = LinearLayout.LayoutParams(1, (16 * dp).toInt())
-        })
-
-        // ── OK button ──
-        content.addView(TextView(this).apply {
-            text = "Apply"
-            textSize = 14f
+        // Commit ✓
+        scrollContent.addView(TextView(this).apply {
+            text = "✓"
+            textSize = 18f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#2196F3"))
+                setColor(Color.parseColor("#4CAF50"))
                 cornerRadius = 8f * dp
             }
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, (44 * dp).toInt()
-            )
-            setOnClickListener {
-                val newSize = sizeEdit.text.toString().toFloatOrNull()
-                if (newSize != null) overlay.textFontSize = newSize
-                overlay.isBold = boldBtn.textColors?.defaultColor == Color.BLACK
-                overlay.isItalic = italicBtn.textColors?.defaultColor == Color.BLACK
-            }
+            layoutParams = LinearLayout.LayoutParams((34 * dp).toInt(), (34 * dp).toInt())
+            setOnClickListener { commitTextOverlay() }
         })
 
-        TooltipPopup(
-            ctx = this,
-            content = content,
-            arrowPosition = BubbleDrawable.ArrowPosition.BOTTOM_CENTER,
-            backgroundColor = Color.parseColor("#2C2C2C")
-        ).showAt(binding.btnKeyboard, 0)
+        // Wrap in HorizontalScrollView so all buttons are reachable
+        val wrapper = HorizontalScrollView(this).apply {
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            isHorizontalScrollBarEnabled = false
+            clipToPadding = false
+            addView(scrollContent)
+        }
+        val bar = FrameLayout(this).apply {
+            setPadding((6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt())
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#E61E1E1E"))
+                cornerRadius = 16f * dp
+            }
+            addView(wrapper)
+        }
+
+        textFormatBar = PopupWindow(bar, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            isOutsideTouchable = false
+            isFocusable = false
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        }
+        try {
+            textFormatBar!!.showAtLocation(binding.root, Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, (80 * dp).toInt())
+        } catch (_: Exception) { }
+    }
+
+    private fun updateFormatBar() {
+        // no-op: all buttons update themselves in-place, no flash needed
     }
 
     // ── CALLBACKS (dipanggil dari DrawingView) ─────────────────
@@ -1201,8 +1482,42 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         showTextOverlay(null)
     }
 
+    private fun showAddTextPopup(viewX: Float, viewY: Float) {
+        if (textOverlayActive) return
+        val dv = binding.drawingView
+        val pos = IntArray(2)
+        dv.getLocationOnScreen(pos)
+        val dp = resources.displayMetrics.density
+
+        val label = TextView(this).apply {
+            text = "Add text"
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding((20 * dp).toInt(), (12 * dp).toInt(), (20 * dp).toInt(), (12 * dp).toInt())
+            setOnClickListener {
+                showTextOverlay(null)
+                addTextPopup?.dismiss()
+                addTextPopup = null
+            }
+        }
+        val popup = PopupWindow(label, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            isOutsideTouchable = true
+            isFocusable = true
+            setBackgroundDrawable(ColorDrawable(Color.parseColor("#E61E1E1E")))
+        }
+        addTextPopup = popup
+        val screenX = (pos[0] + viewX - 40 * dp).toInt()
+        val screenY = (pos[1] + viewY - 60 * dp).toInt()
+        popup.showAtLocation(binding.root, Gravity.NO_GRAVITY, screenX, screenY)
+    }
+
+    private var addTextPopup: PopupWindow? = null
+
     private fun onTextLayerTap(layer: DrawingView.ImageLayer) {
         if (textOverlayActive) {
+            showTextOverlay(layer)
+        } else if (binding.drawingView.brushSettings.toolType == DrawingView.TOOL_KEYBOARD) {
             showTextOverlay(layer)
         } else if (textDialogLayer == layer) {
             showTextEditorDialog(layer)
@@ -1296,19 +1611,42 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         dialog.show()
     }
 
-    private fun onToolClick(toolType: Int, view: View) {
+    private fun onToolClick(toolType: Int, @Suppress("UNUSED_PARAMETER") view: View) {
         if (binding.drawingView.brushSettings.toolType == toolType) {
-            showSizePopup(view)
+            if (binding.rulerSizeBar.visibility == View.VISIBLE) {
+                hideRulerSizeBar()
+            } else {
+                layersPopup?.dismiss()
+                dismissCancelPopup()
+                showRulerSizeBar()
+            }
         } else {
             selectTool(toolType)
         }
     }
 
     private fun selectTool(toolType: Int) {
+        textFormatBar?.dismiss()
+        textFormatBar = null
+        layersPopup?.dismiss()
+        imageSourcePopup?.dismiss()
+        dismissCancelPopup()
         if (textOverlayActive && toolType != DrawingView.TOOL_KEYBOARD) {
             cancelTextOverlay()
         }
         binding.drawingView.brushSettings.toolType = toolType
+        val isDrawingTool = toolType in listOf(
+            BrushSettings.TOOL_FOUNTAIN_PEN, BrushSettings.TOOL_PENCIL,
+            BrushSettings.TOOL_MARKER, BrushSettings.TOOL_INK_PEN,
+            BrushSettings.TOOL_ERASER, DrawingView.TOOL_BRUSH,
+            DrawingView.TOOL_ROLLER, DrawingView.TOOL_RULER
+        )
+        if (isDrawingTool) {
+            toolSizes[toolType]?.let { binding.drawingView.brushSettings.size = it }
+            showRulerSizeBar()
+        } else {
+            hideRulerSizeBar()
+        }
         val dp = resources.displayMetrics.density
         toolBtns.forEach {
             it.isSelected = false
@@ -1354,55 +1692,65 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         }
     }
 
-    // ─── POPUPS & PANELS ─────────────────────────────────────────
-    private fun showSizePopup(anchor: View) {
+    private fun showSizeInputDialog() {
         val dp = resources.displayMetrics.density
-
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding((12 * dp).toInt(), (8 * dp).toInt(), (12 * dp).toInt(), (8 * dp).toInt())
+        val currentSize = binding.drawingView.brushSettings.size.toInt()
+        val input = android.widget.EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setText(currentSize.toString())
+            selectAll()
+            layoutParams = LinearLayout.LayoutParams(
+                (120 * dp).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT
+            )
         }
-
-        listOf(
-            Triple("Large",  SIZE_LARGE,  (28 * dp).toInt()),
-            Triple("Medium", SIZE_MEDIUM, (18 * dp).toInt()),
-            Triple("Small",  SIZE_SMALL,  (10 * dp).toInt())
-        ).forEach { (label, size, previewSize) ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding((8 * dp).toInt(), (10 * dp).toInt(), (8 * dp).toInt(), (10 * dp).toInt())
-                minimumWidth = (140 * dp).toInt()
-                setOnClickListener {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Set Size")
+            .setView(input)
+            .setPositiveButton("OK") { _, _ ->
+                val v = input.text.toString().toIntOrNull()
+                if (v != null) {
+                    val size = v.coerceIn(1, 100).toFloat()
                     binding.drawingView.brushSettings.size = size
+                    toolSizes[binding.drawingView.brushSettings.toolType] = size
+                    binding.rulerSeekbar.progress = size.toInt().coerceIn(0, 100)
+                    binding.rulerSizeLabel.text = "${size.toInt()}"
                 }
             }
-            row.addView(View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(previewSize, previewSize).also {
-                    it.marginEnd = (12 * dp).toInt()
-                }
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(Color.WHITE)
-                }
-            })
-            row.addView(TextView(this).apply {
-                text = label; textSize = 14f; setTextColor(Color.WHITE)
-            })
-            layout.addView(row)
-        }
-
-        TooltipPopup(
-            ctx = this,
-            content = layout,
-            arrowPosition = BubbleDrawable.ArrowPosition.BOTTOM_CENTER,
-            backgroundColor = deepOceanBg(Color.parseColor("#2C2C2C"))
-        ).showAt(anchor, 0)
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
-    private fun showShapePopup(anchor: View) {
+    private fun setupRulerSizeBar() {
+        binding.rulerSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seek: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                val size = if (progress == 0) 1f else progress.toFloat()
+                binding.drawingView.brushSettings.size = size
+                toolSizes[binding.drawingView.brushSettings.toolType] = size
+                binding.rulerSizeLabel.text = "${size.toInt()}"
+            }
+            override fun onStartTrackingTouch(seek: SeekBar?) {}
+            override fun onStopTrackingTouch(seek: SeekBar?) {}
+        })
+        binding.rulerSizeLabel.setOnClickListener { showSizeInputDialog() }
+    }
+
+    private fun showRulerSizeBar() {
+        val size = binding.drawingView.brushSettings.size
+        val progress = size.toInt().coerceIn(0, 100)
+        binding.rulerSeekbar.progress = progress
+        binding.rulerSizeLabel.text = "${size.toInt()}"
+        binding.rulerSizeBar.visibility = View.VISIBLE
+    }
+
+    private fun hideRulerSizeBar() {
+        binding.rulerSizeBar.visibility = View.GONE
+    }
+
+    private fun showShapePopup(anchor: View, yOffset: Int = 0) {
         shapePopup?.dismiss()
         val dp = resources.displayMetrics.density
+        val activeType = binding.drawingView.activeShape
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -1413,7 +1761,9 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         val shapes = listOf(
             ShapeItem("Line", DrawingView.ShapeType.LINE, R.drawable.ic_line),
             ShapeItem("Square", DrawingView.ShapeType.RECT, R.drawable.ic_square),
-            ShapeItem("Circle", DrawingView.ShapeType.CIRCLE, R.drawable.ic_circle)
+            ShapeItem("Circle", DrawingView.ShapeType.CIRCLE, R.drawable.ic_circle),
+            ShapeItem("Triangle", DrawingView.ShapeType.TRIANGLE, R.drawable.ic_triangle),
+            ShapeItem("Hexagon", DrawingView.ShapeType.HEXAGON, R.drawable.ic_hexagon)
         )
 
         shapes.forEach { item ->
@@ -1421,6 +1771,13 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding((8 * dp).toInt(), (10 * dp).toInt(), (24 * dp).toInt(), (10 * dp).toInt())
+                if (item.type == activeType) {
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.RECTANGLE
+                        cornerRadius = 12f * dp
+                        setColor(Color.parseColor("#30FFFFFF"))
+                    }
+                }
                 setOnClickListener {
                     binding.drawingView.activeShape = item.type
                     binding.drawingView.brushSettings.toolType = DrawingView.TOOL_RULER
@@ -1445,9 +1802,17 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             ctx = this,
             content = layout,
             arrowPosition = BubbleDrawable.ArrowPosition.BOTTOM_CENTER,
-            backgroundColor = deepOceanBg(Color.parseColor("#2C2C2C"))
+            backgroundColor = deepOceanBg(Color.parseColor("#2C2C2C")),
+            cornerRadius = 20f
         )
-        shapePopup!!.showAt(anchor, 0)
+        shapePopup!!.setOnDismissListener {
+            showRulerSizeBar()
+            binding.btnImportPhoto.alpha = 0.35f
+            SpringAnimation(binding.btnImportPhoto, DynamicAnimation.TRANSLATION_Y, 0f).apply {
+                spring.dampingRatio = SpringForce.DAMPING_RATIO_HIGH_BOUNCY; spring.stiffness = SpringForce.STIFFNESS_MEDIUM; start()
+            }
+        }
+        shapePopup!!.showAt(anchor, yOffset)
     }
 
     private fun updateScissorBtnState() {
@@ -1458,7 +1823,7 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         }
     }
 
-    private fun showScissorPopup(anchor: View) {
+    private fun showScissorPopup() {
         val dv = binding.drawingView
         selectTool(DrawingView.TOOL_SCISSOR)
 
@@ -1470,15 +1835,15 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         )
 
         val items = listOf(
-            ScissorItem("Batal", DrawingView.SCISSOR_CANCEL, R.drawable.selection_slash, "#EF5350"),
             ScissorItem("Lasso", DrawingView.SCISSOR_LASSO, R.drawable.lasso, "#FFFFFF"),
+            ScissorItem("Kotak", DrawingView.SCISSOR_RECT, R.drawable.selection, "#FFFFFF"),
             ScissorItem("Magic", DrawingView.SCISSOR_MAGIC_WAND, R.drawable.magic_wand, "#FFFFFF"),
-            ScissorItem("Smart", DrawingView.SCISSOR_SMART_CUT, R.drawable.smart_cut, "#81C784"),
+            ScissorItem("Smart", DrawingView.SCISSOR_SMART_CUT, R.drawable.smart_cut, "#FFFFFF"),
             ScissorItem("Invers", DrawingView.SCISSOR_INVERSE, R.drawable.selection_inverse, "#FFFFFF"),
-            ScissorItem("Potong", DrawingView.SCISSOR_CUT, R.drawable.scissors, "#FFAB91"),
+            ScissorItem("Potong", DrawingView.SCISSOR_CUT, R.drawable.scissors, "#FFFFFF"),
             ScissorItem("Salin", DrawingView.SCISSOR_COPY, R.drawable.copy, "#FFFFFF"),
             ScissorItem("Tempel", DrawingView.SCISSOR_PASTE, R.drawable.clipboard, "#FFFFFF"),
-            ScissorItem("Hapus", DrawingView.SCISSOR_DELETE, R.drawable.trash, "#EF5350")
+            ScissorItem("Hapus", DrawingView.SCISSOR_DELETE, R.drawable.trash, "#FFFFFF")
         )
 
         val grid = GridLayout(this).apply {
@@ -1502,20 +1867,12 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
                     selectTool(DrawingView.TOOL_SCISSOR)
                     scissorPopup?.dismiss()
                     scissorPopup = null
-                    if (item.mode == DrawingView.SCISSOR_CANCEL) {
-                        dv.clearSelection()
-                        dv.scissorMode = DrawingView.SCISSOR_NONE
-                    } else if (item.mode == DrawingView.SCISSOR_CUT) {
-                        dv.cutSelection()
-                    } else if (item.mode == DrawingView.SCISSOR_COPY) {
-                        dv.copySelection()
-                        Toast.makeText(this@SketchActivity, "Tersalin ke clipboard", Toast.LENGTH_SHORT).show()
-                    } else if (item.mode == DrawingView.SCISSOR_PASTE) {
-                        dv.pasteSelection()
-                    } else if (item.mode == DrawingView.SCISSOR_DELETE) {
-                        dv.deleteSelection()
-                    } else if (item.mode == DrawingView.SCISSOR_INVERSE) {
-                        dv.invertSelection()
+                    when (item.mode) {
+                        DrawingView.SCISSOR_CUT    -> { dismissCancelPopup(); dv.cutSelection() }
+                        DrawingView.SCISSOR_COPY   -> { dismissCancelPopup(); dv.copySelection(); Toast.makeText(this@SketchActivity, "Tersalin ke clipboard", Toast.LENGTH_SHORT).show() }
+                        DrawingView.SCISSOR_PASTE  -> { dismissCancelPopup(); dv.pasteSelection() }
+                        DrawingView.SCISSOR_DELETE -> { dismissCancelPopup(); dv.deleteSelection() }
+                        DrawingView.SCISSOR_LASSO, DrawingView.SCISSOR_RECT, DrawingView.SCISSOR_SMART_CUT, DrawingView.SCISSOR_MAGIC_WAND, DrawingView.SCISSOR_INVERSE -> showCancelPopup()
                     }
                 }
             }
@@ -1539,9 +1896,48 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             ctx = this,
             content = grid,
             arrowPosition = BubbleDrawable.ArrowPosition.BOTTOM_CENTER,
-            backgroundColor = deepOceanBg(Color.parseColor("#2C2C2C"))
+            backgroundColor = deepOceanBg(Color.parseColor("#2C2C2C")),
+            cornerRadius = 20f
         )
-        scissorPopup!!.showAt(anchor, 0)
+        scissorPopup!!.showAt(binding.btnScissors, 0)
+        scissorPopup!!.setOnDismissListener {
+            binding.btnImportPhoto.alpha = 0.35f
+            SpringAnimation(binding.btnImportPhoto, DynamicAnimation.TRANSLATION_Y, 0f).apply {
+                spring.dampingRatio = SpringForce.DAMPING_RATIO_HIGH_BOUNCY; spring.stiffness = SpringForce.STIFFNESS_MEDIUM; start()
+            }
+        }
+    }
+
+    // ─── CANCEL POPUP (ABOVE SEEKBAR) ───────────────────────────────
+    private fun showCancelPopup() {
+        cancelPopup?.dismiss()
+        val dp = resources.displayMetrics.density
+        val btn = TextView(this).apply {
+            text = "Batal"
+            textSize = 13f
+            setTextColor(Color.WHITE)
+            setPadding((20 * dp).toInt(), (10 * dp).toInt(), (20 * dp).toInt(), (10 * dp).toInt())
+            setOnClickListener {
+                binding.drawingView.clearSelection()
+                binding.drawingView.scissorMode = DrawingView.SCISSOR_NONE
+                dismissCancelPopup()
+            }
+        }
+        cancelPopup = PopupWindow(btn, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            isOutsideTouchable = true
+            isFocusable = false
+            setBackgroundDrawable(ColorDrawable(Color.parseColor("#5A5A5A")))
+        }
+        val loc = IntArray(2)
+        binding.btnMove.getLocationOnScreen(loc)
+        try {
+            cancelPopup!!.showAtLocation(binding.btnMove, Gravity.NO_GRAVITY, loc[0], loc[1] - (70 * dp).toInt())
+        } catch (_: Exception) { }
+    }
+
+    private fun dismissCancelPopup() {
+        cancelPopup?.dismiss()
+        cancelPopup = null
     }
 
     // ─── IMAGE SOURCE POPUP (GALLERY / STICKER) ─────────────────────
@@ -1608,9 +2004,18 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         imageSourcePopup = TooltipPopup(
             ctx = this, content = container,
             arrowPosition = BubbleDrawable.ArrowPosition.BOTTOM_CENTER,
-            backgroundColor = Color.parseColor("#2C2C2C")
+            backgroundColor = Color.parseColor("#2C2C2C"),
+            cornerRadius = 20f
         )
         imageSourcePopup!!.showAt(anchor, 0)
+        imageSourcePopup!!.setOnDismissListener {
+            binding.btnImportPhoto.alpha = 0.35f
+            SpringAnimation(binding.btnImportPhoto, DynamicAnimation.TRANSLATION_Y, 0f).apply {
+                spring.dampingRatio = SpringForce.DAMPING_RATIO_HIGH_BOUNCY
+                spring.stiffness = SpringForce.STIFFNESS_MEDIUM
+                start()
+            }
+        }
     }
 
     // ─── IMAGE EDITING TOOLBAR ────────────────────────────────────
@@ -1711,7 +2116,9 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
             val x = resources.displayMetrics.widthPixels - (56 * dp).toInt() - (8 * dp).toInt()
             val y = (resources.displayMetrics.heightPixels / 2) - (140 * dp).toInt()
-            showAtLocation(binding.root, Gravity.NO_GRAVITY, x, y)
+            try {
+                showAtLocation(binding.root, Gravity.NO_GRAVITY, x, y)
+            } catch (_: Exception) { }
         }
     }
 
@@ -1733,6 +2140,7 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             binding.btnLayers.setColorFilter(defaultIcon)
             return
         }
+        hideRulerSizeBar()
         showLayersPanel()
         binding.btnLayers.setColorFilter(activeIcon)
     }
@@ -2541,31 +2949,26 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
 
     private fun performExitSave() {
         isSaving = true
-        LoadingOverlay.show(this@SketchActivity, "Menyimpan...")
+        LoadingOverlay.show(this@SketchActivity, null)
         lifecycleScope.launch(Dispatchers.IO + NonCancellable) {
             try {
                 val dv = binding.drawingView
 
-                LoadingOverlay.setText(this@SketchActivity, "Meratakan layer...")
                 withContext(Dispatchers.Main) {
                     dv.flattenLayersForSave()
                 }
                 val bmp = withContext(Dispatchers.Main) { dv.getBitmap() }
 
-                LoadingOverlay.setText(this@SketchActivity, "Menyimpan layer...")
                 dv.saveLayers(bookId, spreadIndex)
 
                 if (bmp != null) {
-                    LoadingOverlay.setText(this@SketchActivity, "Menyimpan pratinjau...")
                     FileUtils.saveBitmap(bmp, FileUtils.getSpreadFile(this@SketchActivity, bookId, spreadIndex))
                 }
 
-                LoadingOverlay.setText(this@SketchActivity, "Menyimpan template...")
                 currentPage?.let { page ->
                     db.pageDao().update(page.copy(templateType = dv.pageTemplate))
                 }
 
-                LoadingOverlay.setText(this@SketchActivity, "Membersihkan memori...")
                 withContext(Dispatchers.Main) {
                     dv.clearUndoRedo()
                     dv.invalidate()

@@ -26,6 +26,7 @@ class TextOverlayView @JvmOverloads constructor(
 
     // ─── TEXT PROPERTIES ──────────────────────────────────────
     var textColor: Int = Color.BLACK
+        set(v) { field = v; updateEditTextStyle() }
     var textFontSize: Float = 48f
         set(v) { field = v; updateEditTextStyle() }
     var textAlignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL
@@ -40,6 +41,20 @@ class TextOverlayView @JvmOverloads constructor(
     var onCommit: ((TextOverlayView) -> Unit)? = null
     var onCancel: (() -> Unit)? = null
     var onTextChanged: ((String) -> Unit)? = null
+    var showActionButtons: Boolean = true
+        set(v) { field = v; if (doneBtn.parent != null) applyActionButtonState() }
+    private fun applyActionButtonState() {
+        val v = showActionButtons
+        doneBtn.visibility = if (v) View.VISIBLE else View.GONE
+        cancelBtn.visibility = if (v) View.VISIBLE else View.GONE
+        val pad = (handleRadius * 1.5f).toInt()
+        val top = pad + if (v) (handleRadius * 1.5f + 8 * density).toInt() else 0
+        editText.setPadding(pad, top, pad, pad)
+    }
+    var isEditing: Boolean = false
+        set(v) { field = v; borderPaint.color = if (v) Color.parseColor("#FF9800") else Color.parseColor("#2196F3"); invalidate() }
+    var showHandles: Boolean = false
+        set(v) { field = v; invalidate() }
 
     // ─── INTERNAL VIEWS ───────────────────────────────────────
     private val editText: EditText
@@ -93,37 +108,23 @@ class TextOverlayView @JvmOverloads constructor(
         style = Paint.Style.STROKE
         strokeWidth = 3f
     }
-    private val rotationHandlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#2196F3")
-        style = Paint.Style.STROKE
-        strokeWidth = 2f
-    }
-
     init {
         btnSize = (40 * density).toInt()
-        handleRadius = 14f * density
+        handleRadius = 9f * density
         setBackgroundColor(Color.parseColor("#1AFFFFFF"))
 
         editText = EditText(context).apply {
             layoutParams = LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(
-                    (handleRadius * 2).toInt(),
-                    (handleRadius * 2 + btnSize + 8 * density).toInt(),
-                    (handleRadius * 2).toInt(),
-                    (handleRadius * 2).toInt()
-                )
-            }
+            )
             background = null
             setTextColor(textColor)
             textSize = textFontSize / density
             gravity = Gravity.START or Gravity.TOP
-            minLines = 1
-            maxLines = 10
+            minLines = 2
             isVerticalScrollBarEnabled = true
-            setHorizontallyScrolling(false)
+            setHorizontallyScrolling(true)
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -137,6 +138,13 @@ class TextOverlayView @JvmOverloads constructor(
                         as android.view.inputmethod.InputMethodManager
                     imm.showSoftInput(this, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
                 }
+            }
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+            setOnEditorActionListener { _, action, _ ->
+                if (action == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+                    onCommit?.invoke(this@TextOverlayView)
+                    true
+                } else false
             }
             setOnClickListener { /* needed for focus */ }
         }
@@ -176,6 +184,7 @@ class TextOverlayView @JvmOverloads constructor(
         }
         addView(cancelBtn)
 
+        applyActionButtonState()
         setWillNotDraw(false)
     }
 
@@ -234,23 +243,20 @@ class TextOverlayView @JvmOverloads constructor(
 
         canvas.drawRect(rect, borderPaint)
 
-        val hr = handleRadius
-        val corners = listOf(
-            rect.left to rect.top,
-            rect.right to rect.top,
-            rect.left to rect.bottom,
-            rect.right to rect.bottom
-        )
-        for ((cx, cy) in corners) {
-            canvas.drawCircle(cx, cy, hr, handleFill)
-            canvas.drawCircle(cx, cy, hr, handleStroke)
+        if (showHandles) {
+            val hr = handleRadius
+            val corners = listOf(
+                rect.left to rect.top,
+                rect.right to rect.top,
+                rect.left to rect.bottom,
+                rect.right to rect.bottom
+            )
+            for ((cx, cy) in corners) {
+                canvas.drawCircle(cx, cy, hr, handleFill)
+                canvas.drawCircle(cx, cy, hr, handleStroke)
+            }
         }
 
-        // Rotation handle (top center)
-        val rotHandleY = rect.top - hr * 1.8f
-        canvas.drawLine(rect.centerX(), rect.top, rect.centerX(), rotHandleY, rotationHandlePaint)
-        canvas.drawCircle(rect.centerX(), rotHandleY, hr * 0.7f, handleFill)
-        canvas.drawCircle(rect.centerX(), rotHandleY, hr * 0.7f, handleStroke)
     }
 
     // ─── TOUCH HANDLING ───────────────────────────────────────
@@ -283,12 +289,6 @@ class TextOverlayView @JvmOverloads constructor(
 
                 val h = getHandleAt(ev.x, ev.y)
                 if (h != Handle.NONE) { activeHandle = h; return true }
-
-                val rect = RectF(handleRadius, handleRadius, width - handleRadius, height - handleRadius)
-                val rotY = rect.top - handleRadius * 1.8f
-                if (hypot(ev.x - rect.centerX(), ev.y - rotY) <= handleRadius * 1.5f) {
-                    activeHandle = Handle.TR; return true
-                }
                 return false
             }
             MotionEvent.ACTION_MOVE -> {
@@ -318,16 +318,14 @@ class TextOverlayView @JvmOverloads constructor(
                     handleDragStartX = ev.x; handleDragStartY = ev.y
                     handleStartW = width.toFloat(); handleStartH = height.toFloat()
                 }
-                val rect = RectF(handleRadius, handleRadius, width - handleRadius, height - handleRadius)
-                val rotY = rect.top - handleRadius * 1.8f
-                if (hypot(ev.x - rect.centerX(), ev.y - rotY) <= handleRadius * 1.5f) {
-                    activeHandle = Handle.TR
-                }
             }
 
             MotionEvent.ACTION_MOVE -> {
                 if (activeHandle != Handle.NONE) {
-                    val dw = ev.x - handleDragStartX
+                    val dw = when (activeHandle) {
+                        Handle.TL, Handle.BL -> handleDragStartX - ev.x
+                        else -> ev.x - handleDragStartX
+                    }
                     val newW = (handleStartW + dw).coerceAtLeast(100f * density)
                     val ratio = newW / handleStartW
                     val newH = (handleStartH * ratio).coerceAtLeast(60f * density)

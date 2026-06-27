@@ -36,6 +36,7 @@ class DrawingView @JvmOverloads constructor(
         const val SCISSOR_PASTE        = 6
         const val SCISSOR_DELETE       = 7
         const val SCISSOR_CANCEL       = 8
+        const val SCISSOR_RECT         = 9
     }
 
     var brushSettings = BrushSettings()
@@ -105,6 +106,7 @@ class DrawingView @JvmOverloads constructor(
         val textFontSize: Float,
         val textIsHorizontal: Boolean, val textFlipH: Boolean, val textFlipV: Boolean,
         val textIsBold: Boolean, val textIsItalic: Boolean,
+        val textIsUnderline: Boolean, val textIsVertical: Boolean,
         val name: String,
         val nativeId: Int
     )
@@ -139,6 +141,9 @@ class DrawingView @JvmOverloads constructor(
         var textFlipV: Boolean = false,
         var textIsBold: Boolean = false,
         var textIsItalic: Boolean = false,
+        var textIsUnderline: Boolean = false,
+        var textIsVertical: Boolean = false,
+        var textFontPath: String = "",
         var textTypeface: Typeface? = null,
         var name: String = "Layer",
         var nativeId: Int = -1
@@ -229,7 +234,7 @@ class DrawingView @JvmOverloads constructor(
     private var layerStartX = 0f; private var layerStartY = 0f
 
     // ─── RULER / SHAPE STATE ──────────────────────────────────────
-    enum class ShapeType { LINE, RECT, CIRCLE }
+    enum class ShapeType { LINE, RECT, CIRCLE, TRIANGLE, HEXAGON }
     var activeShape: ShapeType? = null
     private var shapeStartX = 0f; private var shapeStartY = 0f
     private var shapeEndX   = 0f; private var shapeEndY   = 0f
@@ -252,6 +257,8 @@ class DrawingView @JvmOverloads constructor(
     private var magicWandJob: Job? = null
     private var marchingAntsPhase = 0f
     private var antsAnimator: ValueAnimator? = null
+    private val tempLassoPath = Path()
+    private val tempRectF = RectF()
 
     // ─── PENDING IMAGE (PREVIEW SEBELUM DROP) ─────────────────────
     var pendingBitmap: Bitmap? = null
@@ -295,6 +302,10 @@ class DrawingView @JvmOverloads constructor(
     private val shapePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeWidth = 4f; color = Color.BLACK
         strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
+    }
+    private val angleLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#FFCC00"); textSize = 32f
+        textAlign = Paint.Align.CENTER; isFakeBoldText = true
     }
     private val scissorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeWidth = 3f; color = Color.parseColor("#FF5722")
@@ -533,8 +544,13 @@ class DrawingView @JvmOverloads constructor(
             selectionBorderPaint.pathEffect = DashPathEffect(floatArrayOf(8f, 6f), marchingAntsPhase)
             canvas.drawPath(selectionPath, selectionBorderPaint)
         }
-        if (isSelecting && !hasSelection && scissorMode != SCISSOR_NONE) {
-            canvas.drawPath(selectionPath, selectionLinePaint)
+        if (isSelecting && scissorMode != SCISSOR_NONE) {
+            if (scissorMode == SCISSOR_RECT && !tempRectF.isEmpty) {
+                canvas.drawRect(tempRectF, selectionLinePaint)
+            } else {
+                val livePath = if (!tempLassoPath.isEmpty) tempLassoPath else selectionPath
+                canvas.drawPath(livePath, selectionLinePaint)
+            }
         }
     }
 
@@ -656,13 +672,29 @@ class DrawingView @JvmOverloads constructor(
     }
 
     private fun drawShapePreview(canvas: Canvas) {
-        // Shapes are already in bitmap coordinates; matrix transform handles scaling/translation
         shapePaint.color = brushSettings.color
         shapePaint.strokeWidth = brushSettings.size
         when (activeShape) {
-            ShapeType.LINE -> canvas.drawLine(
-                shapeStartX, shapeStartY,
-                shapeEndX, shapeEndY, shapePaint)
+            ShapeType.LINE -> {
+                canvas.drawLine(shapeStartX, shapeStartY, shapeEndX, shapeEndY, shapePaint)
+                val dx = shapeEndX - shapeStartX
+                val dy = shapeEndY - shapeStartY
+                if (dx != 0f || dy != 0f) {
+                    val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).let {
+                        if (it < 0) it + 180 else it
+                    }
+                    val snap = Math.round(angle / 5.0) * 5.0
+                    val label = "${snap.toInt()}°"
+                    val mx = (shapeStartX + shapeEndX) / 2f
+                    val my = (shapeStartY + shapeEndY) / 2f
+                    val bg = Paint().apply { color = Color.parseColor("#CC000000"); style = Paint.Style.FILL }
+                    val tw = angleLabelPaint.measureText(label) + 16f
+                    val th = 36f
+                    val bw = tw; val bh = th
+                    canvas.drawRoundRect(mx - bw / 2f, my - bh / 2f, mx + bw / 2f, my + bh / 2f, 6f, 6f, bg)
+                    canvas.drawText(label, mx, my + angleLabelPaint.textSize / 3f, angleLabelPaint)
+                }
+            }
             ShapeType.RECT -> canvas.drawRect(
                 minOf(shapeStartX, shapeEndX),
                 minOf(shapeStartY, shapeEndY),
@@ -670,8 +702,21 @@ class DrawingView @JvmOverloads constructor(
                 maxOf(shapeStartY, shapeEndY), shapePaint)
             ShapeType.CIRCLE -> {
                 val r = hypot(shapeEndX - shapeStartX, shapeEndY - shapeStartY)
-                canvas.drawCircle(
-                    shapeStartX, shapeStartY, r, shapePaint)
+                canvas.drawCircle(shapeStartX, shapeStartY, r, shapePaint)
+            }
+            ShapeType.TRIANGLE, ShapeType.HEXAGON -> {
+                val cx = shapeStartX; val cy = shapeStartY
+                val r = hypot(shapeEndX - shapeStartX, shapeEndY - shapeStartY)
+                val path = Path()
+                val n = if (activeShape == ShapeType.TRIANGLE) 3 else 6
+                for (i in 0 until n) {
+                    val a = Math.toRadians((i * 360.0 / n) - 90.0)
+                    val px = cx + r * cos(a).toFloat()
+                    val py = cy + r * sin(a).toFloat()
+                    if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+                }
+                path.close()
+                canvas.drawPath(path, shapePaint)
             }
             else -> {}
         }
@@ -1046,6 +1091,7 @@ class DrawingView @JvmOverloads constructor(
         textIsHorizontal = textIsHorizontal,
         textFlipH = textFlipH, textFlipV = textFlipV,
         textIsBold = textIsBold, textIsItalic = textIsItalic,
+        textIsUnderline = textIsUnderline, textIsVertical = textIsVertical,
         name = name, nativeId = nativeId
     )
     }
@@ -1070,6 +1116,7 @@ class DrawingView @JvmOverloads constructor(
                 textIsHorizontal = ls.textIsHorizontal,
                 textFlipH = ls.textFlipH, textFlipV = ls.textFlipV,
                 textIsBold = ls.textIsBold, textIsItalic = ls.textIsItalic,
+                textIsUnderline = ls.textIsUnderline, textIsVertical = ls.textIsVertical,
                 name = ls.name, nativeId = newNativeId
             )
             layers.add(layer)
@@ -1592,7 +1639,7 @@ class DrawingView @JvmOverloads constructor(
         // Tool-specific single-finger modes
         if (pc == 1) {
             if (brushSettings.toolType == TOOL_KEYBOARD) {
-                handleKeyboardTouch(event, rawX, rawY)
+                handleKeyboardTouch(event, rawX, rawY, event.x, event.y)
                 return true
             }
             if (brushSettings.toolType == TOOL_RULER) {
@@ -1643,6 +1690,12 @@ class DrawingView @JvmOverloads constructor(
                 val newPc = pc
                 if (gestureState == GestureState.DRAWING) {
                     endDrawing()
+                }
+                // Cancel keyboard touch when multi-finger gesture starts
+                if (brushSettings.toolType == TOOL_KEYBOARD) {
+                    isTextDragging = false
+                    textDragLayer = null
+                    textDragRect = null
                 }
                 // Initialize gestures for 2+ fingers
                 for (i in 0 until newPc) {
@@ -1990,12 +2043,16 @@ class DrawingView @JvmOverloads constructor(
     // ─── KEYBOARD TOOL TOUCH ──────────────────────────────────────
     var onKeyboardTap: ((Float, Float) -> Unit)? = null
     var onTextLayerTap: ((ImageLayer) -> Unit)? = null
+    var onShowAddTextPopup: ((Float, Float) -> Unit)? = null
+    var onShowAddTextPopupView: ((Float, Float) -> Unit)? = null
+    var onDoubleTapTextLayer: ((ImageLayer) -> Unit)? = null
 
     private fun findTextLayerAt(x: Float, y: Float): ImageLayer? {
+        val pad = 30f
         return layers.lastOrNull { layer ->
             layer.isTextLayer && layer.isVisible && layer.textContent?.isNotEmpty() == true &&
-                x >= layer.x && x <= layer.x + layer.bitmap.width * layer.scale &&
-                y >= layer.y && y <= layer.y + layer.bitmap.height * layer.scale
+                x >= layer.x - pad && x <= layer.x + layer.bitmap.width * layer.scale + pad &&
+                y >= layer.y - pad && y <= layer.y + layer.bitmap.height * layer.scale + pad
         }
     }
 
@@ -2003,14 +2060,20 @@ class DrawingView @JvmOverloads constructor(
     private var textDragLayerStartX = 0f
     private var textDragLayerStartY = 0f
 
-    private fun handleKeyboardTouch(event: MotionEvent, x: Float, y: Float) {
+    // 1-finger double-tap for text editing
+    private var textLastTapTime = 0L
+    private var textLastTapX = 0f
+    private var textLastTapY = 0f
+    private var textLastTapLayer: ImageLayer? = null
+    private val textDoubleTapTime = 300L
+
+    private fun handleKeyboardTouch(event: MotionEvent, x: Float, y: Float, viewX: Float = 0f, viewY: Float = 0f) {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 textDragStartX = x
                 textDragStartY = y
                 isTextDragging = false
                 textDragRect = null
-                // Cek apakah touch dimulai di atas text layer
                 textDragLayer = findTextLayerAt(x, y)
                 textDragLayer?.let {
                     textDragLayerStartX = it.x
@@ -2021,7 +2084,6 @@ class DrawingView @JvmOverloads constructor(
                 val dist = hypot(x - textDragStartX, y - textDragStartY)
                 if (dist > touchSlop * 2) {
                     isTextDragging = true
-                    // Jika touch di atas text layer, geser langsung
                     if (textDragLayer != null) {
                         val layer = textDragLayer!!
                         layer.x = textDragLayerStartX + (x - textDragStartX)
@@ -2029,7 +2091,6 @@ class DrawingView @JvmOverloads constructor(
                         textDragRect = null
                         invalidate()
                     } else {
-                        // Tampilkan drag rectangle
                         textDragRect = RectF(
                             minOf(textDragStartX, x), minOf(textDragStartY, y),
                             maxOf(textDragStartX, x), maxOf(textDragStartY, y)
@@ -2041,41 +2102,37 @@ class DrawingView @JvmOverloads constructor(
             MotionEvent.ACTION_UP -> {
                 textDragRect = null
                 if (isTextDragging) {
-                    val draggedLayer = textDragLayer
                     textDragLayer = null
                     isTextDragging = false
-                    if (draggedLayer != null) {
-                        // Selesai menggeser text layer → tampilkan popup
-                        onTextLayerTap?.invoke(draggedLayer)
-                    } else {
-                        // Drag rect — cek apakah mengenai text layer
-                        val dragRect = RectF(
-                            minOf(textDragStartX, x), minOf(textDragStartY, y),
-                            maxOf(textDragStartX, x), maxOf(textDragStartY, y)
-                        )
-                        val hitLayer = layers.lastOrNull { layer ->
-                            layer.isTextLayer && layer.isVisible && layer.textContent?.isNotEmpty() == true &&
-                                RectF.intersects(dragRect, RectF(
-                                    layer.x, layer.y,
-                                    layer.x + layer.bitmap.width * layer.scale,
-                                    layer.y + layer.bitmap.height * layer.scale
-                                ))
-                        }
-                        if (hitLayer != null) {
-                            onTextLayerTap?.invoke(hitLayer)
-                        } else {
-                            onKeyboardTap?.invoke(x, y)
-                        }
-                    }
                     invalidate()
                 } else {
                     // Tap (tanpa drag)
                     textDragLayer = null
                     val tappedLayer = findTextLayerAt(x, y)
+                    val now = System.currentTimeMillis()
+
                     if (tappedLayer != null) {
-                        onTextLayerTap?.invoke(tappedLayer)
+                        // Double-tap detection on text layer
+                        if (now - textLastTapTime < textDoubleTapTime &&
+                            textLastTapLayer == tappedLayer &&
+                            hypot(x - textLastTapX, y - textLastTapY) < touchSlop * 3) {
+                            // Double tap → edit text
+                            textLastTapTime = 0
+                            textLastTapLayer = null
+                            onDoubleTapTextLayer?.invoke(tappedLayer)
+                        } else {
+                            // Single tap on text → record for potential double-tap, no action
+                            textLastTapTime = now
+                            textLastTapX = x
+                            textLastTapY = y
+                            textLastTapLayer = tappedLayer
+                        }
                     } else {
-                        onKeyboardTap?.invoke(x, y)
+                        textLastTapTime = 0
+                        textLastTapLayer = null
+                        // Tap on empty canvas → show add text popup at view coordinates
+                        onShowAddTextPopupView?.invoke(viewX, viewY)
+                        onShowAddTextPopup?.invoke(x, y)
                     }
                 }
             }
@@ -2083,6 +2140,16 @@ class DrawingView @JvmOverloads constructor(
     }
 
     // ─── SHAPE & RULER TOUCH ──────────────────────────────────────
+    private fun snappedEndPoint(sx: Float, sy: Float, ex: Float, ey: Float): Pair<Float, Float> {
+        val dx = ex - sx; val dy = ey - sy
+        if (dx == 0f && dy == 0f) return ex to ey
+        val dist = hypot(dx, dy)
+        val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble()))
+        val snapped = Math.round(angle / 5.0) * 5.0
+        val rad = Math.toRadians(snapped)
+        return sx + dist * cos(rad).toFloat() to sy + dist * sin(rad).toFloat()
+    }
+
     private fun handleShapeTouch(event: MotionEvent, bx: Float, by: Float) {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -2093,13 +2160,24 @@ class DrawingView @JvmOverloads constructor(
                 isDrawingShape = true
             }
             MotionEvent.ACTION_MOVE -> {
-                shapeEndX = bx; shapeEndY = by; invalidate()
+                if (activeShape == ShapeType.LINE) {
+                    val snapped = snappedEndPoint(shapeStartX, shapeStartY, bx, by)
+                    shapeEndX = snapped.first; shapeEndY = snapped.second
+                } else {
+                    shapeEndX = bx; shapeEndY = by
+                }
+                invalidate()
             }
             MotionEvent.ACTION_UP -> {
                 val layer = selectedLayer ?: return
                 isDrawingShape = false
                 val (lx1, ly1) = bitmapToLayer(shapeStartX, shapeStartY, layer)
-                val (lx2, ly2) = bitmapToLayer(bx, by, layer)
+                val (lx2, ly2) = if (activeShape == ShapeType.LINE) {
+                    val s = snappedEndPoint(shapeStartX, shapeStartY, bx, by)
+                    bitmapToLayer(s.first, s.second, layer)
+                } else {
+                    bitmapToLayer(bx, by, layer)
+                }
                 val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     style = Paint.Style.STROKE
                     strokeWidth = brushSettings.size
@@ -2114,6 +2192,19 @@ class DrawingView @JvmOverloads constructor(
                     ShapeType.CIRCLE -> {
                         val r = hypot(lx2 - lx1, ly2 - ly1)
                         layer.canvas.drawCircle(lx1, ly1, r, p)
+                    }
+                    ShapeType.TRIANGLE, ShapeType.HEXAGON -> {
+                        val n = if (activeShape == ShapeType.TRIANGLE) 3 else 6
+                        val r = hypot(lx2 - lx1, ly2 - ly1)
+                        val path = Path()
+                        for (i in 0 until n) {
+                            val a = Math.toRadians((i * 360.0 / n) - 90.0)
+                            val px = lx1 + r * cos(a).toFloat()
+                            val py = ly1 + r * sin(a).toFloat()
+                            if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+                        }
+                        path.close()
+                        layer.canvas.drawPath(path, p)
                     }
                     else -> {}
                 }
@@ -2154,6 +2245,7 @@ class DrawingView @JvmOverloads constructor(
             SCISSOR_PASTE -> pasteSelection()
             SCISSOR_DELETE -> deleteSelection()
             SCISSOR_CANCEL -> clearSelection()
+            SCISSOR_RECT -> handleRectTouch(event, x, y)
         }
     }
 
@@ -2165,20 +2257,28 @@ class DrawingView @JvmOverloads constructor(
             MotionEvent.ACTION_DOWN -> {
                 lassoPoints.clear()
                 lassoPoints.add(x to y)
-                selectionPath.reset()
-                selectionPath.moveTo(x, y)
+                tempLassoPath.reset()
+                tempLassoPath.moveTo(x, y)
                 isSelecting = true
-                hasSelection = false
             }
             MotionEvent.ACTION_MOVE -> {
                 lassoPoints.add(x to y)
-                selectionPath.lineTo(x, y)
+                tempLassoPath.lineTo(x, y)
                 invalidate()
             }
             MotionEvent.ACTION_UP -> {
                 lassoPoints.add(x to y)
-                selectionPath.close()
+                tempLassoPath.close()
                 isSelecting = false
+
+                val prevSelection = Path(selectionPath)
+                if (!prevSelection.isEmpty) {
+                    val raw = Path()
+                    raw.op(prevSelection, tempLassoPath, Path.Op.UNION)
+                    selectionPath.set(raw)
+                } else {
+                    selectionPath.set(tempLassoPath)
+                }
                 hasSelection = true
                 onSelectionChanged?.invoke()
                 invalidate()
@@ -2190,12 +2290,57 @@ class DrawingView @JvmOverloads constructor(
                         lassoPoints, bmp.width, bmp.height
                     )
                     withContext(Dispatchers.Main) {
-                        if (smoothed != null) {
-                            selectionPath.set(smoothed)
+                        if (smoothed != null && !smoothed.isEmpty) {
+                            val unionPath = Path()
+                            if (!prevSelection.isEmpty) {
+                                unionPath.op(prevSelection, smoothed, Path.Op.UNION)
+                                selectionPath.set(unionPath)
+                            } else {
+                                selectionPath.set(smoothed)
+                            }
                         }
+                        tempLassoPath.reset()
                         invalidate()
                     }
                 }
+            }
+        }
+    }
+
+    private var rectOrigin = Pair(0f, 0f)
+
+    private fun handleRectTouch(event: MotionEvent, x: Float, y: Float) {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                rectOrigin = x to y
+                tempRectF.set(x, y, x, y)
+                isSelecting = true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                tempRectF.set(
+                    minOf(rectOrigin.first, x),
+                    minOf(rectOrigin.second, y),
+                    maxOf(rectOrigin.first, x),
+                    maxOf(rectOrigin.second, y)
+                )
+                invalidate()
+            }
+            MotionEvent.ACTION_UP -> {
+                isSelecting = false
+                val selPath = Path()
+                selPath.addRect(tempRectF, Path.Direction.CW)
+                val prevSelection = Path(selectionPath)
+                if (!prevSelection.isEmpty) {
+                    val raw = Path()
+                    raw.op(prevSelection, selPath, Path.Op.UNION)
+                    selectionPath.set(raw)
+                } else {
+                    selectionPath.set(selPath)
+                }
+                hasSelection = true
+                onSelectionChanged?.invoke()
+                tempRectF.setEmpty()
+                invalidate()
             }
         }
     }
@@ -2316,35 +2461,45 @@ class DrawingView @JvmOverloads constructor(
         saveState("cutSelection")
         ClipboardManager.clipboardBitmap = selBmp
         clearSelectedAreaFromLayer()
-        val bounds = RectF()
-        selectionPath.computeBounds(bounds, true)
-        val nativeId = if (nativeAvailable) nativeCreateLayer(selBmp.width, selBmp.height) else -1
-        val cutLayer = ImageLayer(
-            bitmap = selBmp,
-            canvas = Canvas(selBmp),
-            x = bounds.left,
-            y = bounds.top,
-            scale = 1f,
-            name = "Potongan",
-            nativeId = nativeId
-        )
-        layers.forEach { it.isSelected = false }
-        layers.add(cutLayer)
-        selectedLayer = cutLayer
-        isTransformMode = true
         hasSelection = false
         isSelecting = false
         selectionPath.reset()
+        tempLassoPath.reset()
         onSelectionChanged?.invoke()
-        onLayersChanged?.invoke()
         invalidate()
         scissorMode = SCISSOR_NONE
     }
 
     fun copySelection() {
+        val layer = selectedLayer ?: return
+        if (layer.isLocked || layer.isTextLayer) return
         val selBmp = getSelectedBitmapFromLayer() ?: return
+        saveState("copySelection")
         ClipboardManager.clipboardBitmap = selBmp
+        val bounds = RectF()
+        selectionPath.computeBounds(bounds, true)
+        val nativeId = if (nativeAvailable) nativeCreateLayer(selBmp.width, selBmp.height) else -1
+        val copyLayer = ImageLayer(
+            bitmap = selBmp,
+            canvas = Canvas(selBmp),
+            x = bounds.left,
+            y = bounds.top,
+            scale = 1f,
+            name = "Salinan",
+            nativeId = nativeId
+        )
+        layers.forEach { it.isSelected = false }
+        layers.add(copyLayer)
+        selectedLayer = copyLayer
+        isTransformMode = true
+        hasSelection = false
+        isSelecting = false
+        selectionPath.reset()
+        tempLassoPath.reset()
+        onSelectionChanged?.invoke()
+        onLayersChanged?.invoke()
         invalidate()
+        scissorMode = SCISSOR_NONE
     }
 
     fun pasteSelection() {
@@ -2371,6 +2526,7 @@ class DrawingView @JvmOverloads constructor(
         hasSelection = false
         isSelecting = false
         selectionPath.reset()
+        tempLassoPath.reset()
         onSelectionChanged?.invoke()
         onLayersChanged?.invoke()
         invalidate()
@@ -2386,6 +2542,7 @@ class DrawingView @JvmOverloads constructor(
         hasSelection = false
         isSelecting = false
         selectionPath.reset()
+        tempLassoPath.reset()
         onSelectionChanged?.invoke()
         invalidate()
         scissorMode = SCISSOR_NONE
@@ -2398,6 +2555,7 @@ class DrawingView @JvmOverloads constructor(
         fullPath.addRect(0f, 0f, bmp.width.toFloat(), bmp.height.toFloat(), Path.Direction.CW)
         fullPath.op(selectionPath, Path.Op.DIFFERENCE)
         selectionPath.set(fullPath)
+        tempLassoPath.reset()
         invalidate()
     }
 
@@ -2405,6 +2563,8 @@ class DrawingView @JvmOverloads constructor(
         hasSelection = false
         isSelecting = false
         selectionPath.reset()
+        tempLassoPath.reset()
+        tempRectF.setEmpty()
         onSelectionChanged?.invoke()
         invalidate()
         scissorMode = SCISSOR_NONE
@@ -2467,6 +2627,7 @@ class DrawingView @JvmOverloads constructor(
                 isTransformMode = true
                 hasSelection = false
                 selectionPath.reset()
+                tempLassoPath.reset()
                 onLayersChanged?.invoke()
                 invalidate()
             }

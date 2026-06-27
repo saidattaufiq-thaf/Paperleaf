@@ -16,7 +16,7 @@
             android:id="@+id/lottieLogo"
             android:layout_width="120dp"
             android:layout_height="120dp"
-            app:lottie_rawRes="@raw/loading_spinner"
+            app:lottie_rawRes="@raw/paperleaf_loading"
             app:lottie_autoPlay="true"
             app:lottie_loop="true"
             app:lottie_speed="0.8"
