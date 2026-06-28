@@ -7,8 +7,6 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.paperleaf.sketchbook.databinding.ActivityReaderBinding
-import com.eschao.android.widget.pageflip.PageFlipView
-import com.eschao.android.widget.pageflip.OnPageFlipListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,51 +39,23 @@ class ReaderActivity : AppCompatActivity() {
         bookId = intent.getLongExtra(EXTRA_BOOK_ID, 0)
         startSpread = intent.getIntExtra(EXTRA_START_SPREAD, 0)
 
-        setupPageFlipListener()
         loadInitialPages()
     }
 
-    private fun setupPageFlipListener() {
-        binding.pageFlipView.setOnPageFlipListener(object : OnPageFlipListener {
-            override fun canFlipForward(): Boolean {
-                // TODO: Check if there are more pages to flip forward
-                return true
-            }
-
-            override fun canFlipBackward(): Boolean {
-                // TODO: Check if there are previous pages to flip backward
-                return false // Disable backward for now
-            }
-            
-            override fun onPageFlipCompleted(forward: Boolean) {
-                // Called when page flip animation completes
-                // You can load next/previous page here
-                Log.d("PageFlip", "Flip completed: ${if (forward) "forward" else "backward"}")
-                
-                // Example: Load next page after forward flip
-                if (forward) {
-                    loadNextPage()
-                }
-            }
-        })
-    }
-    
     private fun loadNextPage() {
         lifecycleScope.launch {
-            // Load next page from your Room database or assets
             val nextPage = withContext(Dispatchers.IO) {
                 loadAndScaleBitmap("path_to_next_page.jpg")
             }
-            
+
             nextPage?.let {
-                binding.pageFlipView.setNextPage(it)
+                // PremiumPageFlipView handles page textures directly
             }
         }
     }
 
     private fun loadInitialPages() {
         lifecycleScope.launch {
-            // Load pages from your Room database or assets
             val page1 = withContext(Dispatchers.IO) {
                 loadAndScaleBitmap("path_to_page_1.jpg")
             }
@@ -94,7 +64,7 @@ class ReaderActivity : AppCompatActivity() {
             }
 
             if (page1 != null && page2 != null) {
-                binding.pageFlipView.setFirstPage(page1, page2)
+                binding.pageFlipView.setPages(page1, page2)
             }
         }
     }
@@ -132,6 +102,6 @@ class ReaderActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        binding.pageFlipView.onDelete()
+        binding.pageFlipView.cleanup()
     }
 }

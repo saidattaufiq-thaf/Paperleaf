@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <com.eschao.android.widget.pageflip.PageFlipView
+    <com.paperleaf.sketchbook.pageflip.premium.PremiumPageFlipView
         android:id="@+id/pageFlipView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

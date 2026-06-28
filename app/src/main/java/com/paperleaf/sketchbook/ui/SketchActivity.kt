@@ -390,7 +390,7 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
         binding.drawingView.onShowAddTextPopupView = { vx, vy ->
             showAddTextPopup(vx, vy)
         }
-        binding.drawingView.onShowAddTextPopup = { x, y ->
+        binding.drawingView.onShowAddTextPopup = { _, _ ->
             // bitmap coords – unused for popup positioning
         }
 
@@ -398,7 +398,7 @@ class SketchActivity : AppCompatActivity(), ThemeManager.OnThemeChangeListener {
             onTextLayerTap(layer)
         }
 
-        binding.drawingView.onTextLayerTap = { layer ->
+        binding.drawingView.onTextLayerTap = { _ ->
             // do nothing on single tap – only drag is allowed
         }
 

@@ -1,43 +1,29 @@
 package com.paperleaf.sketchbook.pageflip.premium.mesh
 
-import android.opengl.GLES30
 import android.util.Log
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.nio.FloatBuffer
-import java.nio.ShortBuffer
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
+import kotlin.math.exp
+import kotlin.math.abs
 
-/**
- * Generates adaptive 3D mesh for realistic paper curl simulation.
- * Uses 30x30 grid minimum with subdivision for smooth deformation.
- * 
- * Features:
- * - High-density vertex grid for smooth curves
- * - Normal vectors for lighting calculations
- * - Texture coordinates mapping
- * - Dynamic vertex positioning for curl effect
- * - Object pooling for performance
- */
 class MeshGenerator {
-    
+
     companion object {
         private const val TAG = "MeshGenerator"
         private const val DEFAULT_GRID_SIZE = 30
         private const val MAX_GRID_SIZE = 60
         private const val MIN_GRID_SIZE = 20
-        
-        // Vertex stride: position (3) + normal (3) + texCoord (2) = 8 floats
+
         private const val VERTEX_STRIDE = 8
         private const val POSITION_COMPONENT_COUNT = 3
         private const val NORMAL_COMPONENT_COUNT = 3
         private const val TEX_COORD_COMPONENT_COUNT = 2
+
+        private const val CURL_RADIUS_FACTOR = 0.12f
+        private const val ADAPTIVE_CONCENTRATION = 3.0f
     }
-    
-    /**
-     * Data class holding mesh vertex data
-     */
+
     data class MeshData(
         val vertices: FloatArray,
         val indices: ShortArray,
@@ -45,49 +31,7 @@ class MeshGenerator {
         val indexCount: Int,
         val gridSize: Int
     )
-    
-    /**
-     * Pooled mesh for reuse to reduce allocations
-     */
-    class PooledMesh(val meshData: MeshData) {
-        val vertexBuffer: FloatBuffer
-        val indexBuffer: ShortBuffer
-        var isDirty = true
-        
-        init {
-            // Allocate direct buffers for OpenGL
-            val bbVertices = ByteBuffer.allocateDirect(meshData.vertices.size * 4)
-                .order(ByteOrder.nativeOrder())
-            vertexBuffer = bbVertices.asFloatBuffer()
-            vertexBuffer.put(meshData.vertices)
-            vertexBuffer.position(0)
-            
-            val bbIndices = ByteBuffer.allocateDirect(meshData.indices.size * 2)
-                .order(ByteOrder.nativeOrder())
-            indexBuffer = bbIndices.asShortBuffer()
-            indexBuffer.put(meshData.indices)
-            indexBuffer.position(0)
-        }
-        
-        fun updateVertices(newVertices: FloatArray) {
-            vertexBuffer.clear()
-            vertexBuffer.put(newVertices)
-            vertexBuffer.position(0)
-            isDirty = true
-        }
-    }
-    
-    private val meshPool = mutableListOf<PooledMesh>()
-    private val activeMeshes = mutableMapOf<Int, PooledMesh>()
-    
-    /**
-     * Generate a base plane mesh with specified grid density
-     * 
-     * @param width Width of the page in OpenGL units
-     * @param height Height of the page in OpenGL units
-     * @param gridSize Number of subdivisions per axis (default 30)
-     * @return MeshData containing vertices and indices
-     */
+
     fun generatePlaneMesh(
         width: Float = 1.0f,
         height: Float = 1.0f,
@@ -95,43 +39,38 @@ class MeshGenerator {
     ): MeshData {
         val clampedGridSize = gridSize.coerceIn(MIN_GRID_SIZE, MAX_GRID_SIZE)
         val vertexCount = (clampedGridSize + 1) * (clampedGridSize + 1)
-        val indexCount = clampedGridSize * clampedGridSize * 6 // 2 triangles per quad, 3 vertices each
-        
+        val indexCount = clampedGridSize * clampedGridSize * 6
+
         val vertices = FloatArray(vertexCount * VERTEX_STRIDE)
         val indices = ShortArray(indexCount)
-        
+
         val halfWidth = width / 2.0f
         val halfHeight = height / 2.0f
-        val stepX = width / clampedGridSize
-        val stepY = height / clampedGridSize
-        
-        // Generate vertices
+
+        val xPositions = adaptiveGrid(clampedGridSize, -halfWidth, halfWidth)
+        val yPositions = adaptiveGrid(clampedGridSize, -halfHeight, halfHeight)
+
         var vertexIndex = 0
         for (row in 0..clampedGridSize) {
             for (col in 0..clampedGridSize) {
-                val x = -halfWidth + col * stepX
-                val y = -halfHeight + row * stepY
-                val z = 0.0f
-                
-                // Position
+                val x = xPositions[col]
+                val y = yPositions[row]
+
                 vertices[vertexIndex++] = x
                 vertices[vertexIndex++] = y
-                vertices[vertexIndex++] = z
-                
-                // Normal (pointing up for flat plane)
+                vertices[vertexIndex++] = 0.0f
+
                 vertices[vertexIndex++] = 0.0f
                 vertices[vertexIndex++] = 0.0f
                 vertices[vertexIndex++] = 1.0f
-                
-                // Texture coordinates
+
                 val u = col.toFloat() / clampedGridSize
                 val v = row.toFloat() / clampedGridSize
                 vertices[vertexIndex++] = u
                 vertices[vertexIndex++] = v
             }
         }
-        
-        // Generate indices (triangle strip)
+
         var indexIndex = 0
         for (row in 0 until clampedGridSize) {
             for (col in 0 until clampedGridSize) {
@@ -139,250 +78,229 @@ class MeshGenerator {
                 val topRight = topLeft + 1
                 val bottomLeft = (row + 1) * (clampedGridSize + 1) + col
                 val bottomRight = bottomLeft + 1
-                
-                // First triangle
+
                 indices[indexIndex++] = topLeft.toShort()
                 indices[indexIndex++] = bottomLeft.toShort()
                 indices[indexIndex++] = topRight.toShort()
-                
-                // Second triangle
+
                 indices[indexIndex++] = topRight.toShort()
                 indices[indexIndex++] = bottomLeft.toShort()
                 indices[indexIndex++] = bottomRight.toShort()
             }
         }
-        
+
         return MeshData(vertices, indices, vertexCount, indexCount, clampedGridSize)
     }
-    
-    /**
-     * Apply curl deformation to mesh vertices
-     * 
-     * @param meshData Base mesh data
-     * @param curlFactor Intensity of curl (0.0 = flat, 1.0 = full curl)
-     * @param bendAxis Axis of bending (0 = X, 1 = Y)
-     * @param curlPosition Position of curl along the axis (0.0 to 1.0)
-     * @return Modified vertex array with curl applied
-     */
+
     fun applyCurlDeformation(
         meshData: MeshData,
         curlFactor: Float,
         bendAxis: Int = 0,
-        curlPosition: Float = 0.5f
+        curlPosition: Float = 0.5f,
+        outVertices: FloatArray? = null
     ): FloatArray {
-        val vertices = meshData.vertices.clone()
+        val vertices: FloatArray
+        if (outVertices != null && outVertices.size >= meshData.vertices.size) {
+            System.arraycopy(meshData.vertices, 0, outVertices, 0, meshData.vertices.size)
+            vertices = outVertices
+        } else {
+            vertices = meshData.vertices.clone()
+        }
         val gridSize = meshData.gridSize
-        val curlRad = curlFactor * Math.PI.toFloat() // Convert to radians
-        
+
+        val halfExtent = if (bendAxis == 0) computeHalfWidth(vertices, gridSize)
+                         else computeHalfHeight(vertices, gridSize)
+        val pageExtent = 2f * halfExtent
+        val curlRadius = pageExtent * CURL_RADIUS_FACTOR
+        val curlAngle = curlFactor * Math.PI.toFloat()
+        val foldOrigin = halfExtent * (1f - 2f * curlPosition)
+
         var vertexIndex = 0
         for (row in 0..gridSize) {
             for (col in 0..gridSize) {
                 val baseIndex = vertexIndex
-                
                 val x = vertices[baseIndex]
                 val y = vertices[baseIndex + 1]
-                var z = vertices[baseIndex + 2]
-                
-                // Calculate curl based on position and axis
-                val t = if (bendAxis == 0) {
-                    // Bending along X axis
-                    (x + 0.5f) * curlPosition
+
+                val d = if (bendAxis == 0) x - foldOrigin else y - foldOrigin
+
+                if (d > 0f) {
+                    val maxArc = curlRadius * curlAngle
+                    val displacement: Float
+                    val lift: Float
+
+                    if (d <= maxArc) {
+                        val alpha = d / curlRadius
+                        displacement = curlRadius * sin(alpha)
+                        lift = curlRadius * (1f - cos(alpha))
+                    } else {
+                        val extra = d - maxArc
+                        displacement = curlRadius * sin(curlAngle) + extra * cos(curlAngle)
+                        lift = curlRadius * (1f - cos(curlAngle)) + extra * sin(curlAngle)
+                    }
+
+                    if (bendAxis == 0) {
+                        vertices[baseIndex] = foldOrigin + displacement
+                    } else {
+                        vertices[baseIndex + 1] = foldOrigin + displacement
+                    }
+                    vertices[baseIndex + 2] = lift
                 } else {
-                    // Bending along Y axis
-                    (y + 0.5f) * curlPosition
+                    vertices[baseIndex + 2] = 0f
                 }
-                
-                // Apply sinusoidal curl deformation
-                val curlOffset = sin(t * curlRad) * curlFactor * 0.2f
-                z += curlOffset
-                
-                // Update position
-                vertices[baseIndex + 2] = z
-                
-                // Recalculate normal based on curvature
-                val normalZ = cos(t * curlRad)
-                val normalX = if (bendAxis == 0) -sin(t * curlRad) * curlFactor else 0.0f
-                val normalY = if (bendAxis == 1) -sin(t * curlRad) * curlFactor else 0.0f
-                
-                // Normalize normal vector
-                val length = kotlin.math.sqrt(normalX * normalX + normalY * normalY + normalZ * normalZ)
-                if (length > 0.0001f) {
-                    vertices[baseIndex + 3] = normalX / length
-                    vertices[baseIndex + 4] = normalY / length
-                    vertices[baseIndex + 5] = normalZ / length
-                }
-                
+
                 vertexIndex += VERTEX_STRIDE
             }
         }
-        
+
+        calculateNormalsFiniteDifference(vertices, gridSize)
+
         return vertices
     }
-    
-    /**
-     * Apply complex multi-point deformation for realistic paper behavior
-     * Supports multiple bend points and elastic deformation
-     * 
-     * @param meshData Base mesh data
-     * @param params Deformation parameters
-     * @return Modified vertex array
-     */
+
     fun applyComplexDeformation(
         meshData: MeshData,
         params: DeformationParams
     ): FloatArray {
         val vertices = meshData.vertices.clone()
         val gridSize = meshData.gridSize
-        
+
+        val halfWidth = computeHalfWidth(vertices, gridSize)
+        val halfHeight = computeHalfHeight(vertices, gridSize)
+        val pageExtent = 2f * halfWidth
+        val curlRadius = pageExtent * CURL_RADIUS_FACTOR * params.curlIntensity.coerceIn(0.5f, 2.0f)
+        val curlAngle = params.curlFactor * Math.PI.toFloat()
+        val foldOrigin = halfWidth * (1f - 2f * params.curlPosition)
+
         var vertexIndex = 0
         for (row in 0..gridSize) {
             for (col in 0..gridSize) {
                 val baseIndex = vertexIndex
-                
                 val x = vertices[baseIndex]
                 val y = vertices[baseIndex + 1]
-                var z = vertices[baseIndex + 2]
-                
-                // Apply primary curl
-                val primaryCurl = calculatePrimaryCurl(x, y, params)
-                z += primaryCurl.z
-                
-                // Apply secondary wave for realism
-                val waveEffect = calculateWaveEffect(x, y, params)
-                z += waveEffect
-                
-                // Apply edge softness
-                val edgeSoftness = calculateEdgeSoftness(x, y, params)
-                z *= edgeSoftness
-                
-                // Update position
-                vertices[baseIndex + 2] = z
-                
-                // Recalculate normal using finite differences
-                val normal = calculateNormalAtPoint(col, row, gridSize, params)
-                vertices[baseIndex + 3] = normal.x
-                vertices[baseIndex + 4] = normal.y
-                vertices[baseIndex + 5] = normal.z
-                
+
+                val d = x - foldOrigin
+
+                if (d > 0f) {
+                    val maxArc = curlRadius * curlAngle
+                    val displacement: Float
+                    val lift: Float
+
+                    if (d <= maxArc) {
+                        val alpha = d / curlRadius
+                        displacement = curlRadius * sin(alpha)
+                        lift = curlRadius * (1f - cos(alpha))
+                    } else {
+                        val extra = d - maxArc
+                        displacement = curlRadius * sin(curlAngle) + extra * cos(curlAngle)
+                        lift = curlRadius * (1f - cos(curlAngle)) + extra * sin(curlAngle)
+                    }
+
+                    var finalLift = lift
+
+                    if (params.enableWaveEffect) {
+                        finalLift += sin(x * params.waveFrequency) *
+                                     cos(y * params.waveFrequency) *
+                                     params.waveAmplitude
+                    }
+
+                    if (params.enableEdgeSoftness) {
+                        finalLift *= calculateEdgeSoftness(x, y, params)
+                    }
+
+                    vertices[baseIndex] = foldOrigin + displacement
+                    vertices[baseIndex + 2] = finalLift
+                } else {
+                    vertices[baseIndex + 2] = 0f
+                }
+
                 vertexIndex += VERTEX_STRIDE
             }
         }
-        
+
+        calculateNormalsFiniteDifference(vertices, gridSize)
+
         return vertices
     }
-    
-    private fun calculatePrimaryCurl(x: Float, y: Float, params: DeformationParams): Vector3 {
-        val t = (x + 0.5f) * params.curlPosition
-        val curlAmount = sin(t * params.curlFactor * Math.PI.toFloat()) * params.curlIntensity
-        return Vector3(0f, 0f, curlAmount)
-    }
-    
-    private fun calculateWaveEffect(x: Float, y: Float, params: DeformationParams): Float {
-        if (!params.enableWaveEffect) return 0f
-        
-        val waveFreq = params.waveFrequency
-        val waveAmp = params.waveAmplitude
-        return sin(x * waveFreq) * cos(y * waveFreq) * waveAmp
-    }
-    
+
     private fun calculateEdgeSoftness(x: Float, y: Float, params: DeformationParams): Float {
         if (!params.enableEdgeSoftness) return 1.0f
-        
+
         val edgeDist = minOf(
             (x + 0.5f) / params.edgeSoftnessWidth,
             (0.5f - x) / params.edgeSoftnessWidth,
             (y + 0.5f) / params.edgeSoftnessWidth,
             (0.5f - y) / params.edgeSoftnessWidth
         )
-        
+
         return 1.0f - (1.0f - edgeDist.coerceIn(0f, 1f)) * params.edgeSoftnessStrength
     }
-    
-    private fun calculateNormalAtPoint(
-        col: Int,
-        row: Int,
-        gridSize: Int,
-        params: DeformationParams
-    ): Vector3 {
-        // Simple normal calculation using neighboring points
-        val dx = 1.0f / gridSize
-        val dy = 1.0f / gridSize
-        
-        val zLeft = if (col > 0) getDeformedZ(col - 1, row, gridSize, params) else getDeformedZ(col, row, gridSize, params)
-        val zRight = if (col < gridSize) getDeformedZ(col + 1, row, gridSize, params) else getDeformedZ(col, row, gridSize, params)
-        val zBottom = if (row > 0) getDeformedZ(col, row - 1, gridSize, params) else getDeformedZ(col, row, gridSize, params)
-        val zTop = if (row < gridSize) getDeformedZ(col, row + 1, gridSize, params) else getDeformedZ(col, row, gridSize, params)
-        
-        val tangentX = Vector3(dx, 0f, zRight - zLeft)
-        val tangentY = Vector3(0f, dy, zTop - zBottom)
-        
-        // Cross product for normal
-        val normal = crossProduct(tangentX, tangentY)
-        return normalize(normal)
-    }
-    
-    private fun getDeformedZ(col: Int, row: Int, gridSize: Int, params: DeformationParams): Float {
-        val x = -0.5f + col.toFloat() / gridSize
-        val y = -0.5f + row.toFloat() / gridSize
-        return calculatePrimaryCurl(x, y, params).z + calculateWaveEffect(x, y, params)
-    }
-    
-    private fun crossProduct(a: Vector3, b: Vector3): Vector3 {
-        return Vector3(
-            a.y * b.z - a.z * b.y,
-            a.z * b.x - a.x * b.z,
-            a.x * b.y - a.y * b.x
-        )
-    }
-    
-    private fun normalize(v: Vector3): Vector3 {
-        val len = kotlin.math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
-        if (len < 0.0001f) return Vector3(0f, 0f, 1f)
-        return Vector3(v.x / len, v.y / len, v.z / len)
-    }
-    
-    /**
-     * Get or create a pooled mesh for reuse
-     */
-    fun getPooledMesh(gridSize: Int = DEFAULT_GRID_SIZE): PooledMesh {
-        val poolKey = gridSize
-        
-        // Check if we have an available mesh in the pool
-        val pooled = meshPool.find { it.meshData.gridSize == gridSize && !activeMeshes.containsValue(it) }
-        if (pooled != null) {
-            activeMeshes[poolKey] = pooled
-            return pooled
+
+    private fun calculateNormalsFiniteDifference(vertices: FloatArray, gridSize: Int) {
+        for (row in 0..gridSize) {
+            for (col in 0..gridSize) {
+                val idx = (row * (gridSize + 1) + col) * VERTEX_STRIDE
+
+                val idxL = if (col > 0) idx - VERTEX_STRIDE else idx
+                val idxR = if (col < gridSize) idx + VERTEX_STRIDE else idx
+                val idxB = if (row > 0) idx - (gridSize + 1) * VERTEX_STRIDE else idx
+                val idxT = if (row < gridSize) idx + (gridSize + 1) * VERTEX_STRIDE else idx
+
+                val dx = vertices[idxR] - vertices[idxL]
+                val dy = vertices[idxT + 1] - vertices[idxB + 1]
+                val dzx = vertices[idxR + 2] - vertices[idxL + 2]
+                val dzy = vertices[idxT + 2] - vertices[idxB + 2]
+
+                val tx = dx
+                val ty = 0f
+                val tz = dzx
+
+                val ux = 0f
+                val uy = dy
+                val uz = dzy
+
+                val nx = ty * uz - tz * uy
+                val ny = tz * ux - tx * uz
+                val nz = tx * uy - ty * ux
+
+                val len = sqrt(nx * nx + ny * ny + nz * nz)
+                if (len > 1e-6f) {
+                    vertices[idx + 3] = nx / len
+                    vertices[idx + 4] = ny / len
+                    vertices[idx + 5] = nz / len
+                } else {
+                    vertices[idx + 3] = 0f
+                    vertices[idx + 4] = 0f
+                    vertices[idx + 5] = 1f
+                }
+            }
         }
-        
-        // Create new mesh
-        val meshData = generatePlaneMesh(gridSize = gridSize)
-        val pooledMesh = PooledMesh(meshData)
-        meshPool.add(pooledMesh)
-        activeMeshes[poolKey] = pooledMesh
-        
-        Log.d(TAG, "Created new pooled mesh for gridSize=$gridSize, total pooled: ${meshPool.size}")
-        return pooledMesh
     }
-    
-    /**
-     * Release a mesh back to the pool
-     */
-    fun releaseMesh(mesh: PooledMesh) {
-        activeMeshes.entries.removeIf { it.value == mesh }
-        mesh.isDirty = true
+
+    private fun adaptiveGrid(size: Int, minVal: Float, maxVal: Float): FloatArray {
+        val positions = FloatArray(size + 1)
+        for (i in 0..size) {
+            val t = i.toFloat() / size
+            val diff = t - 0.5f
+            val mappedT = 0.5f + diff / (1f + ADAPTIVE_CONCENTRATION.toFloat() *
+                exp(-diff * diff * 30f))
+            positions[i] = minVal + mappedT * (maxVal - minVal)
+        }
+        return positions
     }
-    
-    /**
-     * Clear all pooled meshes to free memory
-     */
-    fun clearPool() {
-        meshPool.clear()
-        activeMeshes.clear()
+
+    private fun computeHalfWidth(vertices: FloatArray, gridSize: Int): Float {
+        val minX = vertices[0]
+        val maxX = vertices[gridSize * VERTEX_STRIDE]
+        return (maxX - minX) / 2f
     }
-    
-    /**
-     * Parameters for complex deformation
-     */
+
+    private fun computeHalfHeight(vertices: FloatArray, gridSize: Int): Float {
+        val minY = vertices[1]
+        val maxY = vertices[(gridSize * (gridSize + 1)) * VERTEX_STRIDE + 1]
+        return (maxY - minY) / 2f
+    }
+
     data class DeformationParams(
         val curlFactor: Float = 0.5f,
         val curlIntensity: Float = 0.2f,
@@ -394,6 +312,4 @@ class MeshGenerator {
         val edgeSoftnessWidth: Float = 0.1f,
         val edgeSoftnessStrength: Float = 0.3f
     )
-    
-    private data class Vector3(val x: Float, val y: Float, val z: Float)
 }
