@@ -22,7 +22,7 @@ class PagePhysics {
         const val RETURN_THRESHOLD = 0.20f
         const val SNAP_THRESHOLD = 0.03f
 
-        private const val CURL_BASE_RADIUS = 0.5f
+        private const val CURL_BASE_RADIUS = 0.25f
         private const val TOUCH_SENSITIVITY = 0.002f
         private const val TOUCH_VELOCITY_SCALE = 0.00015f
         private const val DT_MAX = 0.033f

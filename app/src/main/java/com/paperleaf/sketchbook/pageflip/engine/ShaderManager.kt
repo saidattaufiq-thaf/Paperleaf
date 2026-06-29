@@ -108,6 +108,7 @@ class ShaderManager {
             layout(location = 2) in vec2 a_texCoord;
 
             uniform mat4 u_MVPMatrix;
+            uniform mat4 u_ModelMatrix;
 
             out vec2 v_texCoord;
             out vec3 v_normal;
@@ -115,8 +116,9 @@ class ShaderManager {
             out float v_height;
 
             void main() {
-                v_fragPos = a_position;
-                v_normal = a_normal;
+                vec4 worldPos = u_ModelMatrix * vec4(a_position, 1.0);
+                v_fragPos = worldPos.xyz;
+                v_normal = normalize(mat3(u_ModelMatrix) * a_normal);
                 v_texCoord = a_texCoord;
                 v_height = a_position.z;
                 gl_Position = u_MVPMatrix * vec4(a_position, 1.0);
@@ -265,6 +267,7 @@ class ShaderManager {
     var paperBrightnessLoc: Int = -1
 
     var backMVPMatrixLoc: Int = -1
+    var backModelMatrixLoc: Int = -1
     var backTextureLoc: Int = -1
     var backFrontTextureLoc: Int = -1
     var backNoiseTextureLoc: Int = -1
@@ -316,6 +319,7 @@ class ShaderManager {
 
         if (backProgram > 0) {
             backMVPMatrixLoc = GLES30.glGetUniformLocation(backProgram, "u_MVPMatrix")
+            backModelMatrixLoc = GLES30.glGetUniformLocation(backProgram, "u_ModelMatrix")
             backTextureLoc = GLES30.glGetUniformLocation(backProgram, "u_texture")
             backFrontTextureLoc = GLES30.glGetUniformLocation(backProgram, "u_frontTexture")
             backNoiseTextureLoc = GLES30.glGetUniformLocation(backProgram, "u_noiseTexture")

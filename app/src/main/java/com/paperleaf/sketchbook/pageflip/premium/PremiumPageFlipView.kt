@@ -8,6 +8,7 @@ import android.opengl.Matrix
 import android.os.Build
 import android.os.SystemClock
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -190,6 +191,7 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
     fun getFrameProfiler(): FrameProfiler = frameProfiler
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+        Log.d("TRACE_PremiumView", "onSurfaceCreated: PremiumPageFlipView surface created")
         releaseGl()
 
         GLES30.glClearColor(0.10f, 0.10f, 0.12f, 1.0f)
@@ -248,6 +250,7 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
     }
 
     override fun onDrawFrame(gl: GL10?) {
+        Log.d("TRACE_PremiumView", "onDrawFrame: rendering frame, isReady=$isReady hasTextures=$hasTextures mesh=${mesh != null}")
         frameProfiler.beginFrame()
 
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
@@ -272,6 +275,7 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
             abs(currentBend - lastBend) > 0.0001f ||
             abs(currentAxisX - lastAxisX) > 0.0001f ||
             abs(currentAxisAngle - lastAxisAngle) > 0.0001f) {
+            Log.d("TRACE_PremiumView", "applyCurlDeformation called: angle=$currentAngle radius=$currentRadius axisX=$currentAxisX axisAngle=$currentAxisAngle")
             meshGenerator.applyCurlDeformation(
                 mesh!!,
                 currentAngle,
@@ -290,14 +294,17 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
 
         Matrix.setIdentityM(modelMatrix, 0)
         val openAngle = flipProgress * 180f
-        Matrix.rotateM(modelMatrix, 0, -openAngle * 0.3f, 0f, 1f, 0f)
+        Matrix.rotateM(modelMatrix, 0, -openAngle * 0.7f, 0f, 1f, 0f)
         Matrix.multiplyMM(tempMatrix, 0, viewMatrix, 0, modelMatrix, 0)
         Matrix.multiplyMM(mvpMatrix, 0, projectionMatrix, 0, tempMatrix, 0)
 
+        Log.d("TRACE_PremiumView", "calling bookRenderer.render")
         bookRenderer.render(mvpMatrix, flipProgress, pageThickness)
 
+        Log.d("TRACE_PremiumView", "calling renderFlippingPage")
         renderFlippingPage(currentCurl, currentBend)
 
+        Log.d("TRACE_PremiumView", "calling renderShadows")
         renderShadows(currentCurl)
 
         if (!hasTextures) {
@@ -309,6 +316,7 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
 
     @Suppress("UNUSED_PARAMETER")
     private fun renderFlippingPage(ignored0: Float, ignored1: Float) {
+        Log.d("TRACE_PremiumView", "renderFlippingPage: mesh=${mesh != null} frontTex=${if (hasTextures && pageTextureIds.isNotEmpty()) pageTextureIds[0] else 0} lightingReady=${lightingRenderer.isReady()}")
         if (mesh == null) return
 
         val frontTex = if (hasTextures && pageTextureIds.isNotEmpty()) {
@@ -316,6 +324,7 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
         } else 0
 
         if (frontTex > 0 && lightingRenderer.isReady()) {
+            Log.d("TRACE_PremiumView", "drawing front page via lightingRenderer with gpuBuffer.draw, indexCount=${mesh!!.indexCount}")
             lightingRenderer.render(
                 mvpMatrix = mvpMatrix,
                 textureId = frontTex,
@@ -348,6 +357,7 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
                 backTextureIds[0]
             } else frontTex
 
+            Log.d("TRACE_PremiumView", "calling curlRenderer.renderBack for back page with gpuBuffer.draw, indexCount=${mesh!!.indexCount}")
             curlRenderer.renderBack(
                 mvpMatrix = mvpMatrix,
                 frontTextureId = frontTex,
@@ -365,6 +375,7 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
                 translucency = 0.18f,
                 rimIntensity = 0.08f,
                 aoIntensity = 0.30f,
+                modelMatrix = modelMatrix,
                 gpuBuffer = gpuBuffer
             )
             frameProfiler.markDrawCall()

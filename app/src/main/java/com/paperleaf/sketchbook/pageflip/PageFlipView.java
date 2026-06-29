@@ -258,6 +258,7 @@ public class PageFlipView extends GLSurfaceView implements GLSurfaceView.Rendere
     }
     
     @Override    public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+        Log.d("TRACE_LegacyView", "onSurfaceCreated CALLED - legacy PageFlipView is ACTIVE");
         try {
             if (mPageFlip != null) {
                 mPageFlip.onSurfaceCreated();
@@ -281,10 +282,13 @@ public class PageFlipView extends GLSurfaceView implements GLSurfaceView.Rendere
     
     @Override
     public void onDrawFrame(GL10 gl) {
+        Log.d("TRACE_LegacyView", "onDrawFrame CALLED");
         if (mPageFlip != null && mSurfaceCreated) {
             if (mPageFlip.isStartedFlip()) {
+                Log.d("TRACE_LegacyView", "drawFlipFrame");
                 mPageFlip.drawFlipFrame();
             } else {
+                Log.d("TRACE_LegacyView", "drawPageFrame");
                 mPageFlip.drawPageFrame();
             }
         }

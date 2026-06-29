@@ -10,6 +10,12 @@ class PaperCurlRenderer {
 
     companion object {
         private const val TAG = "PaperCurlRenderer"
+        private val identityMatrix = floatArrayOf(
+            1f, 0f, 0f, 0f,
+            0f, 1f, 0f, 0f,
+            0f, 0f, 1f, 0f,
+            0f, 0f, 0f, 1f
+        )
     }
 
     private var basicProgram = -1
@@ -34,6 +40,7 @@ class PaperCurlRenderer {
     private var backNormalLoc = -1
     private var backTexCoordLoc = -1
     private var backMVPMatrixLoc = -1
+    private var backModelMatrixLoc = -1
     private var backTextureLoc = -1
     private var backFrontTexLoc = -1
     private var backNoiseLoc = -1
@@ -77,6 +84,7 @@ class PaperCurlRenderer {
             backNormalLoc = GLES30.glGetAttribLocation(backProgram, "a_normal")
             backTexCoordLoc = GLES30.glGetAttribLocation(backProgram, "a_texCoord")
             backMVPMatrixLoc = shaderManager.backMVPMatrixLoc
+            backModelMatrixLoc = shaderManager.backModelMatrixLoc
             backTextureLoc = shaderManager.backTextureLoc
             backFrontTexLoc = shaderManager.backFrontTextureLoc
             backNoiseLoc = shaderManager.backNoiseTextureLoc
@@ -169,6 +177,7 @@ class PaperCurlRenderer {
         translucency: Float = 0.15f,
         rimIntensity: Float = 0.08f,
         aoIntensity: Float = 0.30f,
+        modelMatrix: FloatArray = identityMatrix,
         gpuBuffer: GpuBuffer? = null
     ) {
         if (!isInitialized) return
@@ -176,6 +185,7 @@ class PaperCurlRenderer {
         if (backProgram > 0) {
             GLES30.glUseProgram(backProgram)
             GLES30.glUniformMatrix4fv(backMVPMatrixLoc, 1, false, mvpMatrix, 0)
+            GLES30.glUniformMatrix4fv(backModelMatrixLoc, 1, false, modelMatrix, 0)
 
             bindTexture(backTextureId, GLES30.GL_TEXTURE0)
             GLES30.glUniform1i(backTextureLoc, 0)

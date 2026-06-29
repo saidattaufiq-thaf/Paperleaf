@@ -234,7 +234,11 @@ void main() {
         modelMatrix: FloatArray = identityMatrix,
         gpuBuffer: GpuBuffer? = null
     ) {
-        if (!isInitialized || paperProgram <= 0) return
+        Log.d("TRACE_Lighting", "render: tex=$textureId indexCount=$indexCount useGpuBuffer=${gpuBuffer != null && gpuBuffer.isInitialized()} program=$paperProgram")
+        if (!isInitialized || paperProgram <= 0) {
+            Log.d("TRACE_Lighting", "render SKIPPED: isInitialized=$isInitialized program=$paperProgram")
+            return
+        }
 
         GLES30.glUseProgram(paperProgram)
         GLES30.glUniformMatrix4fv(uMVPMatrix, 1, false, mvpMatrix, 0)

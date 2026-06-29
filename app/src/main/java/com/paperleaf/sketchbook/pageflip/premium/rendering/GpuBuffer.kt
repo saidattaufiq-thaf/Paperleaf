@@ -107,6 +107,7 @@ class GpuBuffer {
     }
 
     fun updateVertexSubData(vertices: FloatArray, offsetBytes: Int = 0) {
+        Log.d("TRACE_GpuBuffer", "updateVertexSubData: vertices=${vertices.size} floats = ${vertices.size * FLOAT_SIZE} bytes, offset=$offsetBytes")
         val sizeBytes = vertices.size * FLOAT_SIZE
         GLES30.glGetIntegerv(GLES30.GL_ARRAY_BUFFER_BINDING, tmpInt, 0)
         val prevVbo = tmpInt[0]
@@ -132,7 +133,11 @@ class GpuBuffer {
     }
 
     fun draw(count: Int = indexCount, mode: Int = GLES30.GL_TRIANGLES) {
-        if (!initialized || count == 0) return
+        if (!initialized || count == 0) {
+            Log.d("TRACE_GpuBuffer", "draw SKIPPED: initialized=$initialized count=$count indexCount=$indexCount")
+            return
+        }
+        Log.d("TRACE_GpuBuffer", "draw: count=$count mode=$mode vao=$vao vbo=$vbo ebo=$ebo")
         bind()
         GLES30.glDrawElements(mode, count, GLES30.GL_UNSIGNED_SHORT, 0)
         unbind()

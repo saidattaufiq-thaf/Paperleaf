@@ -101,6 +101,7 @@ class MeshGenerator {
         axisAngle: Float = 0f,
         outVertices: FloatArray? = null
     ): FloatArray {
+        Log.d("TRACE_MeshGen", "applyCurlDeformation entered: vertices=${meshData.vertices.size} grid=${meshData.gridSize} angle=$curlAngle radius=$curlRadius axisX=$axisX axisAngle=$axisAngle")
         val vertices: FloatArray
         if (outVertices != null && outVertices.size >= meshData.vertices.size) {
             System.arraycopy(meshData.vertices, 0, outVertices, 0, meshData.vertices.size)

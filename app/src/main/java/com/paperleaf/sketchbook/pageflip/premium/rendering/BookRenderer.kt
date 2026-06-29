@@ -113,7 +113,7 @@ class BookRenderer {
         GLES30.glUniformMatrix4fv(mvpLoc, 1, false, temp, 0)
         drawCoverBox(cw, ch, ct, isRight = false)
 
-        val coverAngle = p * 180f
+        val coverAngle = -p * 180f
         Matrix.setIdentityM(model, 0)
         Matrix.translateM(model, 0, hw + sw, 0f, -cv - 0.01f)
         Matrix.rotateM(model, 0, coverAngle, 0f, 1f, 0f)
