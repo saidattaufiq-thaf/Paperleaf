@@ -63,6 +63,9 @@ class PagePhysics {
     private var curlRadius = CURL_BASE_RADIUS
     private var curlAngle = 0f
 
+    private var manualFoldPosition = 0.3f
+    private var useManualFoldPosition = false
+
     fun onTouchDown(x: Float, y: Float, time: Long) {
         lastTouchX = x
         lastTouchY = y
@@ -165,7 +168,8 @@ class PagePhysics {
         curlRadius = CURL_BASE_RADIUS * (1f + (1f - properties.stiffness) * 1.5f)
         state.velocity = state.velocity.coerceIn(-MAX_VELOCITY, MAX_VELOCITY)
         state.curlFactor = calculateCurlFactor(state.position, abs(state.velocity))
-        state.bendPosition = calculateBendPosition(state.position)
+        state.bendPosition = if (useManualFoldPosition) manualFoldPosition
+                             else calculateBendPosition(state.position)
 
         state.isComplete = state.position >= 1f || state.position <= 0f
     }
@@ -219,9 +223,7 @@ class PagePhysics {
     }
 
     private fun calculateCurlFactor(position: Float, speed: Float): Float {
-        val positionCurl = sin(position * Math.PI.toFloat()) * properties.stiffness
-        val speedCurl = speed.coerceIn(0f, 1f) * 0.25f * properties.elasticity
-        return (positionCurl + speedCurl).coerceIn(0f, 1f)
+        return position.coerceIn(0f, 1f)
     }
 
     private fun calculateBendPosition(position: Float): Float {
@@ -250,6 +252,8 @@ class PagePhysics {
         touchVelocityY = 0f
         curlRadius = CURL_BASE_RADIUS
         curlAngle = 0f
+        manualFoldPosition = 0.3f
+        useManualFoldPosition = false
     }
 
     fun setPaperProperties(
@@ -275,7 +279,20 @@ class PagePhysics {
         curlAngle = state.position * Math.PI.toFloat()
         curlRadius = CURL_BASE_RADIUS * (1f + (1f - properties.stiffness) * 1.5f)
         state.curlFactor = calculateCurlFactor(state.position, 0f)
-        state.bendPosition = calculateBendPosition(state.position)
+        state.bendPosition = if (useManualFoldPosition) manualFoldPosition
+                             else calculateBendPosition(state.position)
+    }
+
+    fun setFoldPosition(normalizedX: Float) {
+        manualFoldPosition = normalizedX.coerceIn(0f, 1f)
+        useManualFoldPosition = true
+    }
+
+    fun clearManualFoldPosition() {
+        if (useManualFoldPosition) {
+            state.bendPosition = manualFoldPosition
+            useManualFoldPosition = false
+        }
     }
 
     fun getCurlFactor(): Float = state.curlFactor

@@ -6,6 +6,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.exp
 import kotlin.math.abs
+import kotlin.math.max
 
 class MeshGenerator {
 
@@ -94,9 +95,10 @@ class MeshGenerator {
 
     fun applyCurlDeformation(
         meshData: MeshData,
-        curlFactor: Float,
-        bendAxis: Int = 0,
-        curlPosition: Float = 0.5f,
+        curlAngle: Float,
+        curlRadius: Float,
+        axisX: Float,
+        axisAngle: Float = 0f,
         outVertices: FloatArray? = null
     ): FloatArray {
         val vertices: FloatArray
@@ -108,43 +110,46 @@ class MeshGenerator {
         }
         val gridSize = meshData.gridSize
 
-        val halfExtent = if (bendAxis == 0) computeHalfWidth(vertices, gridSize)
-                         else computeHalfHeight(vertices, gridSize)
-        val pageExtent = 2f * halfExtent
-        val curlRadius = pageExtent * CURL_RADIUS_FACTOR
-        val curlAngle = curlFactor * Math.PI.toFloat()
-        val foldOrigin = halfExtent * (1f - 2f * curlPosition)
+        val effectiveAngle = curlAngle.coerceIn(0.001f, Math.PI.toFloat())
+        val sinA = sin(axisAngle)
+        val cosA = cos(axisAngle)
 
         var vertexIndex = 0
         for (row in 0..gridSize) {
             for (col in 0..gridSize) {
                 val baseIndex = vertexIndex
-                val x = vertices[baseIndex]
-                val y = vertices[baseIndex + 1]
+                val vx = vertices[baseIndex]
+                val vy = vertices[baseIndex + 1]
 
-                val d = if (bendAxis == 0) x - foldOrigin else y - foldOrigin
+                val dx = vx - axisX
+                val dy = vy
+                val t = dx * sinA + dy * cosA
+                val d = dx * cosA - dy * sinA
 
                 if (d > 0f) {
-                    val maxArc = curlRadius * curlAngle
-                    val displacement: Float
-                    val lift: Float
+                    val maxArc = curlRadius * effectiveAngle
+                    val closestX = axisX + t * sinA
+                    val closestY = t * cosA
 
                     if (d <= maxArc) {
-                        val alpha = d / curlRadius
-                        displacement = curlRadius * sin(alpha)
-                        lift = curlRadius * (1f - cos(alpha))
+                        val theta = d / curlRadius
+                        val sinT = sin(theta)
+                        val cosT = cos(theta)
+
+                        vertices[baseIndex] = closestX + curlRadius * sinT * cosA
+                        vertices[baseIndex + 1] = closestY - curlRadius * sinT * sinA
+                        vertices[baseIndex + 2] = curlRadius * (1f - cosT)
                     } else {
                         val extra = d - maxArc
-                        displacement = curlRadius * sin(curlAngle) + extra * cos(curlAngle)
-                        lift = curlRadius * (1f - cos(curlAngle)) + extra * sin(curlAngle)
-                    }
+                        val baseOffset = curlRadius * sin(effectiveAngle)
+                        val baseLift = curlRadius * (1f - cos(effectiveAngle))
+                        val offset = baseOffset + extra * cos(effectiveAngle)
+                        val lift = baseLift + extra * sin(effectiveAngle)
 
-                    if (bendAxis == 0) {
-                        vertices[baseIndex] = foldOrigin + displacement
-                    } else {
-                        vertices[baseIndex + 1] = foldOrigin + displacement
+                        vertices[baseIndex] = closestX + offset * cosA
+                        vertices[baseIndex + 1] = closestY - offset * sinA
+                        vertices[baseIndex + 2] = lift
                     }
-                    vertices[baseIndex + 2] = lift
                 } else {
                     vertices[baseIndex + 2] = 0f
                 }

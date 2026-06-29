@@ -65,6 +65,10 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
     @Volatile private var isDrawingMode = false
     private var lastCurl = -1f
     private var lastBend = -1f
+    private var lastAxisX = Float.NaN
+    private var lastAxisAngle = Float.NaN
+    private var currentAxisX = 0f
+    private var currentAxisAngle = 0f
     private var physicsDeltaMs = 16f
 
     var onFlipProgress: ((Float) -> Unit)? = null
@@ -83,6 +87,7 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
         private val AMBIENT_COLOR = floatArrayOf(0.40f, 0.38f, 0.42f)
         private val DIFFUSE_COLOR = floatArrayOf(0.70f, 0.68f, 0.65f)
         private val SPECULAR_COLOR = floatArrayOf(0.02f, 0.02f, 0.02f)
+        private const val AXIS_ANGLE_MAX = 0.45f
     }
 
     constructor(context: Context) : super(context) {
@@ -260,12 +265,26 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
 
         val currentCurl = pagePhysics.getCurlFactor()
         val currentBend = pagePhysics.getBendPosition()
+        val currentAngle = pagePhysics.getCurlAngle()
+        val currentRadius = pagePhysics.getCurlRadius()
 
-        if (abs(currentCurl - lastCurl) > 0.0001f || abs(currentBend - lastBend) > 0.0001f) {
-            meshGenerator.applyCurlDeformation(mesh!!, currentCurl, 0, currentBend, deformedVertices!!)
+        if (abs(currentCurl - lastCurl) > 0.0001f ||
+            abs(currentBend - lastBend) > 0.0001f ||
+            abs(currentAxisX - lastAxisX) > 0.0001f ||
+            abs(currentAxisAngle - lastAxisAngle) > 0.0001f) {
+            meshGenerator.applyCurlDeformation(
+                mesh!!,
+                currentAngle,
+                currentRadius,
+                currentAxisX,
+                currentAxisAngle,
+                outVertices = deformedVertices!!
+            )
             gpuBuffer.updateVertexSubData(deformedVertices!!)
             lastCurl = currentCurl
             lastBend = currentBend
+            lastAxisX = currentAxisX
+            lastAxisAngle = currentAxisAngle
             frameProfiler.markVboUpload()
         }
 
@@ -410,6 +429,9 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
             is GestureController.GestureEvent.Pan -> {
                 flipProgress = (flipProgress + event.deltaX * SENSITIVITY).coerceIn(0f, 1f)
                 pagePhysics.setPosition(flipProgress)
+                val halfWidth = PAGE_WIDTH / 2f
+                currentAxisX = halfWidth * (1f - 2f * event.foldOriginX.coerceIn(0f, 1f))
+                currentAxisAngle = -AXIS_ANGLE_MAX * (1f - 2f * event.foldOriginY.coerceIn(0f, 1f))
                 onFlipProgress?.invoke(flipProgress)
                 requestRender()
             }
@@ -418,8 +440,12 @@ class PremiumPageFlipView : GLSurfaceView, GLSurfaceView.Renderer {
                 val velocity = event.velocity * 0.002f
                 animateFlip(target, velocity)
             }
-            is GestureController.GestureEvent.FlipStart -> {}
+            is GestureController.GestureEvent.FlipStart -> {
+                currentAxisX = (PAGE_WIDTH / 2f) * (1f - 2f * pagePhysics.getBendPosition())
+                currentAxisAngle = 0f
+            }
             is GestureController.GestureEvent.FlipEnd -> {
+                pagePhysics.clearManualFoldPosition()
                 if (flipProgress > FLIP_COMPLETE_THRESHOLD) {
                     animateFlip(1f, pagePhysics.getState().velocity)
                 } else {
